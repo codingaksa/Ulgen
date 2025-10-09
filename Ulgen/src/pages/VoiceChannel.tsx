@@ -282,7 +282,9 @@ const VoiceChannel: React.FC<VoiceChannelProps> = ({ channelId, noUI }) => {
     // idempotent init: varsa tekrar kurma
     if (socketRef.current) return;
 
-    const socket = io("http://localhost:5000", {
+    const SOCKET_BASE =
+      (import.meta as any).env?.VITE_SOCKET_BASE || "http://localhost:5000";
+    const socket = io(SOCKET_BASE, {
       transports: ["websocket", "polling"],
       reconnection: true,
       reconnectionAttempts: 10,
