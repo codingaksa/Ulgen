@@ -59,8 +59,23 @@ app.use((req, res, next) => {
   next();
 });
 app.use(cors(corsOptions));
-// Ensure preflight is responded to for all routes
-app.options("*", cors(corsOptions));
+// Ensure preflight is responded to for all routes (avoid Express path matching on "*")
+app.use((req, res, next) => {
+  if (req.method === "OPTIONS") {
+    const origin = req.headers.origin;
+    if (isOriginAllowed(origin)) {
+      res.header("Access-Control-Allow-Origin", origin || "*");
+      res.header("Access-Control-Allow-Credentials", "true");
+      res.header(
+        "Access-Control-Allow-Methods",
+        "GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS"
+      );
+      res.header("Access-Control-Allow-Headers", "Content-Type, Authorization");
+    }
+    return res.sendStatus(204);
+  }
+  return next();
+});
 app.use(express.json({ limit: "25mb" }));
 app.use(express.urlencoded({ extended: true, limit: "25mb" }));
 
