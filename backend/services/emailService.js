@@ -1,13 +1,41 @@
 const nodemailer = require('nodemailer');
 
-// Create transporter (using Gmail for development)
+// Resolve frontend and backend base URLs from env with sensible fallbacks
+function resolveClientUrl() {
+  const direct = process.env.CLIENT_URL || process.env.PUBLIC_CLIENT_URL;
+  if (direct && direct.trim()) return direct.trim();
+  const list = process.env.CLIENT_URLS;
+  if (list && list.includes(',')) {
+    const first = list.split(',')[0].trim();
+    if (first) return first;
+  }
+  return '';
+}
+
+function resolveBackendUrl() {
+  return (
+    process.env.PUBLIC_API_BASE ||
+    process.env.API_BASE ||
+    process.env.RENDER_EXTERNAL_URL ||
+    'http://localhost:5000'
+  );
+}
+
+// Create transporter (prefer Gmail with App Password; fallback to stream logger if unset)
 const createTransporter = () => {
+  const user = process.env.EMAIL_USER;
+  const pass = process.env.EMAIL_PASS;
+  if (user && pass) {
+    return nodemailer.createTransport({
+      service: 'gmail',
+      auth: { user, pass },
+    });
+  }
+  // Fallback: do not attempt network send; just log message to console
   return nodemailer.createTransport({
-    service: 'gmail',
-    auth: {
-      user: process.env.EMAIL_USER,
-      pass: process.env.EMAIL_PASS
-    }
+    streamTransport: true,
+    newline: 'unix',
+    buffer: true,
   });
 };
 
@@ -16,7 +44,11 @@ const sendEmailVerification = async (email, username, token) => {
   try {
     const transporter = createTransporter();
     
-    const verificationUrl = `${process.env.CLIENT_URL}/verify-email?token=${encodeURIComponent(token)}`;
+    const clientUrl = resolveClientUrl();
+    const backendBase = resolveBackendUrl();
+    const verificationUrl = clientUrl
+      ? `${clientUrl}/verify-email?token=${encodeURIComponent(token)}`
+      : `${backendBase}/api/auth/verify-email?token=${encodeURIComponent(token)}`;
     const logoUrl = process.env.EMAIL_LOGO_URL || 'https://via.placeholder.com/80x80/4a5568/ffffff?text=U&font-size=24';
     
     const mailOptions = {
@@ -74,8 +106,12 @@ const sendEmailVerification = async (email, username, token) => {
       `
     };
 
-    await transporter.sendMail(mailOptions);
-    console.log(`Email verification sent to ${email}`);
+    const info = await transporter.sendMail(mailOptions);
+    if (info && info.message) {
+      console.log(`Email verification (stream) to ${email}:\n${info.message.toString()}`);
+    } else {
+      console.log(`Email verification sent to ${email}`);
+    }
   } catch (error) {
     console.error('Error sending email verification:', error);
     throw error;
@@ -87,7 +123,11 @@ const sendPasswordReset = async (email, username, token) => {
   try {
     const transporter = createTransporter();
     
-    const resetUrl = `${process.env.CLIENT_URL}/reset-password?token=${encodeURIComponent(token)}`;
+    const clientUrl = resolveClientUrl();
+    const backendBase = resolveBackendUrl();
+    const resetUrl = clientUrl
+      ? `${clientUrl}/reset-password?token=${encodeURIComponent(token)}`
+      : `${backendBase}/api/auth/reset-password?token=${encodeURIComponent(token)}`;
     const logoUrl = process.env.EMAIL_LOGO_URL || 'https://via.placeholder.com/80x80/4a5568/ffffff?text=U&font-size=24';
     
     const mailOptions = {
@@ -146,8 +186,12 @@ const sendPasswordReset = async (email, username, token) => {
       `
     };
 
-    await transporter.sendMail(mailOptions);
-    console.log(`Password reset email sent to ${email}`);
+    const info = await transporter.sendMail(mailOptions);
+    if (info && info.message) {
+      console.log(`Password reset email (stream) to ${email}:\n${info.message.toString()}`);
+    } else {
+      console.log(`Password reset email sent to ${email}`);
+    }
   } catch (error) {
     console.error('Error sending password reset email:', error);
     throw error;
