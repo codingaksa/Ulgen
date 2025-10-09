@@ -16,21 +16,51 @@ const allowedOrigins = corsOriginsRaw
   .map((o) => o.trim())
   .filter(Boolean);
 
+// Build permissive origin matcher supporting explicit list + common wildcards
+const vercelPreviewRegex = /^https:\/\/[a-z0-9-]+\.vercel\.app$/i;
+const netlifyPreviewRegex = /^https:\/\/[a-z0-9-]+--[a-z0-9-]+\.netlify\.app$/i;
+const renderStaticRegex = /^https:\/\/[a-z0-9-]+\.onrender\.com$/i; // allow same-host testing if needed
+
+function isOriginAllowed(origin) {
+  if (!origin) return true; // non-browser or same-origin
+  if (allowedOrigins.includes(origin)) return true;
+  if (vercelPreviewRegex.test(origin)) return true;
+  if (netlifyPreviewRegex.test(origin)) return true;
+  if (renderStaticRegex.test(origin)) return true;
+  return false;
+}
+
+const corsOptions = {
+  origin: (origin, callback) => {
+    if (isOriginAllowed(origin)) return callback(null, true);
+    return callback(new Error("Not allowed by CORS"));
+  },
+  credentials: true,
+  methods: ["GET", "HEAD", "PUT", "PATCH", "POST", "DELETE", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization"],
+  optionsSuccessStatus: 204,
+};
+
 const io = new Server(server, {
   cors: {
-    origin: allowedOrigins,
+    origin: (origin, callback) => {
+      if (isOriginAllowed(origin)) return callback(null, true);
+      return callback(new Error("Not allowed by CORS"));
+    },
     methods: ["GET", "POST"],
     credentials: true,
   },
 });
 
 // Middleware
-app.use(
-  cors({
-    origin: allowedOrigins,
-    credentials: true,
-  })
-);
+app.use((req, res, next) => {
+  // help shared caches vary properly when multiple origins are allowed
+  res.setHeader("Vary", "Origin");
+  next();
+});
+app.use(cors(corsOptions));
+// Ensure preflight is responded to for all routes
+app.options("*", cors(corsOptions));
 app.use(express.json({ limit: "25mb" }));
 app.use(express.urlencoded({ extended: true, limit: "25mb" }));
 
