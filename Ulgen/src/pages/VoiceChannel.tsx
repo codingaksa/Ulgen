@@ -93,7 +93,7 @@ const VoiceChannel: React.FC<VoiceChannelProps> = ({ channelId, noUI }) => {
         pcm = out;
       }
       const buffer = ctx.createBuffer(1, pcm.length, targetRate);
-      buffer.copyToChannel(pcm, 0);
+      buffer.copyToChannel(pcm as any, 0);
       const src = ctx.createBufferSource();
       src.buffer = buffer;
       src.connect(ctx.destination);
