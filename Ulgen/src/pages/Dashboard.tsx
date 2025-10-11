@@ -256,9 +256,9 @@ const Dashboard: React.FC = () => {
           init[id] = 0;
         });
         setUnreadById(init);
-        // Load voice channels from backend (channels with "Voice Channel" description)
+        // Load voice channels from backend (channels with type "voice")
         const voiceChannels = chs
-          .filter((c: any) => c.description === "Voice Channel")
+          .filter((c: any) => c.type === "voice")
           .map((c: any) => ({
             id: (c as any).id || (c as any)._id || c.id,
             name: c.name,
@@ -611,7 +611,8 @@ const Dashboard: React.FC = () => {
                               token,
                               selectedServerId,
                               name,
-                              "Voice Channel"
+                              "Voice Channel",
+                              "voice"
                             );
                             setVoiceChannels((prev) => [
                               ...prev,

@@ -14,6 +14,11 @@ const channelSchema = new mongoose.Schema(
       trim: true,
       maxlength: [200, "Description cannot exceed 200 characters"],
     },
+    type: {
+      type: String,
+      enum: ["text", "voice"],
+      default: "text",
+    },
     server: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Server",

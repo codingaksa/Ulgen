@@ -54,8 +54,15 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     if (token && userData) {
       try {
         const user = JSON.parse(userData);
-        // E-posta onayı kontrolü (devre dışı - test için)
-        setCurrentUser(user);
+        // E-posta onayı kontrolü
+        if (user.isEmailVerified) {
+          setCurrentUser(user);
+        } else {
+          // E-posta onaylanmamışsa çıkış yap
+          localStorage.removeItem("token");
+          localStorage.removeItem("user");
+          setCurrentUser(null);
+        }
       } catch (error) {
         console.error("User data parse error:", error);
         localStorage.removeItem("token");
@@ -79,6 +86,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       const data = await response.json();
 
       if (!response.ok) {
+        if (data.requiresVerification) {
+          throw new Error(
+            "E-posta adresinizi doğrulamanız gerekiyor. Lütfen e-posta kutunuzu kontrol edin."
+          );
+        }
         throw new Error(data.message || "Giriş başarısız");
       }
 
@@ -112,12 +124,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         throw new Error(data.message || "Kayıt başarısız");
       }
 
-      // Kayıt başarılı. Test için otomatik giriş yap.
-      if (data.token && data.user) {
-        localStorage.setItem("token", data.token);
-        localStorage.setItem("user", JSON.stringify(data.user));
-        setCurrentUser(data.user);
-      }
+      // Kayıt başarılı. E-posta doğrulaması yapılana kadar kullanıcıyı oturum açmış olarak işaretleme.
+      // Güvenlik için localStorage'a kullanıcı veya token yazmıyoruz.
+      localStorage.removeItem("token");
+      localStorage.removeItem("user");
+      setCurrentUser(null);
     } catch (error) {
       console.error("Registration error:", error);
       throw error; // Hata mesajını yukarı fırlat

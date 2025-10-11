@@ -63,10 +63,11 @@ const listChannels = async (req, res) => {
 const createChannel = async (req, res) => {
   try {
     const { serverId } = req.params;
-    const { name, description } = req.body;
+    const { name, description, type } = req.body;
     const channel = await Channel.create({
       name,
       description: description || "",
+      type: type || "text",
       server: serverId,
       owner: req.user._id,
       members: [{ user: req.user._id, role: "admin" }],

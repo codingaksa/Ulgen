@@ -67,7 +67,8 @@ export async function createChannel(
   token: string,
   serverId: string,
   name: string,
-  description?: string
+  description?: string,
+  type?: string
 ): Promise<ChannelItem> {
   const res = await fetch(`${API}/servers/${serverId}/channels`, {
     method: "POST",
@@ -75,7 +76,7 @@ export async function createChannel(
       "Content-Type": "application/json",
       Authorization: `Bearer ${token}`,
     },
-    body: JSON.stringify({ name, description }),
+    body: JSON.stringify({ name, description, type }),
   });
   const data = await res.json();
   if (!res.ok) throw new Error(data.message || "Kanal oluşturulamadı");
