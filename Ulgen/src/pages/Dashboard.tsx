@@ -599,7 +599,7 @@ const Dashboard: React.FC = () => {
                       İptal
                     </button>
                     <button
-                      onClick={() => {
+                      onClick={async () => {
                         if (!newVoiceChannelName.trim()) return;
                         const name = newVoiceChannelName.trim();
 
