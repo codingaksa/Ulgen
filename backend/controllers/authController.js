@@ -66,9 +66,10 @@ const register = async (req, res) => {
       username,
       email,
       password,
+      isEmailVerified: true, // Skip email verification for testing
     });
 
-    // Generate email verification token
+    // Generate email verification token (for future use)
     const verificationToken = user.generateEmailVerificationToken();
     await user.save();
     console.log(
@@ -89,7 +90,7 @@ const register = async (req, res) => {
     res.status(201).json({
       success: true,
       message:
-        "User registered successfully. Please check your email to verify your account.",
+        "User registered successfully. You can now login.",
       user: {
         id: user._id,
         username: user.username,
