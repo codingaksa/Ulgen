@@ -1,0 +1,26 @@
+services:
+  - type: web
+    name: ulgen-backend
+    env: node
+    plan: free
+    region: frankfurt
+    rootDir: backend
+    buildCommand: npm install
+    startCommand: npm start
+    envVars:
+      - key: NODE_VERSION
+        value: 18
+      - key: MONGODB_URI
+        value: ""
+      - key: JWT_SECRET
+        generateValue: true
+      - key: CLIENT_URL
+        value: ""
+      - key: CLIENT_URLS
+        value: ""
+      - key: EMAIL_USER
+        value: ""
+      - key: EMAIL_PASS
+        value: ""
+      - key: PUBLIC_API_BASE
+        value: ""
