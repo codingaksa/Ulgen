@@ -79,18 +79,17 @@ const register = async (req, res) => {
       verificationToken
     );
 
-    // Send verification email
-    try {
-      await sendEmailVerification(email, username, verificationToken);
-    } catch (emailError) {
-      console.error("Email sending failed:", emailError);
-      // Don't fail registration if email fails
-    }
+    // Send verification email (disabled for testing)
+    // try {
+    //   await sendEmailVerification(email, username, verificationToken);
+    // } catch (emailError) {
+    //   console.error("Email sending failed:", emailError);
+    //   // Don't fail registration if email fails
+    // }
 
     res.status(201).json({
       success: true,
-      message:
-        "User registered successfully. You can now login.",
+      message: "User registered successfully. You can now login.",
       user: {
         id: user._id,
         username: user.username,
