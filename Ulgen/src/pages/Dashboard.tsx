@@ -256,16 +256,27 @@ const Dashboard: React.FC = () => {
           init[id] = 0;
         });
         setUnreadById(init);
-        // Load persisted voice channels for this server
-        try {
-          const raw = localStorage.getItem("voiceChannels");
-          const map = raw ? JSON.parse(raw) : {};
-          const arr = Array.isArray(map[selectedServerId])
-            ? map[selectedServerId]
-            : [];
-          setVoiceChannels(arr);
-        } catch {
-          setVoiceChannels([]);
+        // Load voice channels from backend (channels with "Voice Channel" description)
+        const voiceChannels = chs
+          .filter((c: any) => c.description === "Voice Channel")
+          .map((c: any) => ({
+            id: (c as any).id || (c as any)._id || c.id,
+            name: c.name,
+          }));
+        setVoiceChannels(voiceChannels);
+
+        // Fallback: Load from localStorage if no backend channels
+        if (voiceChannels.length === 0) {
+          try {
+            const raw = localStorage.getItem("voiceChannels");
+            const map = raw ? JSON.parse(raw) : {};
+            const arr = Array.isArray(map[selectedServerId])
+              ? map[selectedServerId]
+              : [];
+            setVoiceChannels(arr);
+          } catch {
+            setVoiceChannels([]);
+          }
         }
       })
       .catch(() => {});
@@ -590,21 +601,45 @@ const Dashboard: React.FC = () => {
                     <button
                       onClick={() => {
                         if (!newVoiceChannelName.trim()) return;
-                        const id = `${Date.now().toString(36)}`;
                         const name = newVoiceChannelName.trim();
-                        setVoiceChannels((prev) => [...prev, { id, name }]);
-                        // persist voice channels per server
-                        try {
-                          const raw = localStorage.getItem("voiceChannels");
-                          const map = raw ? JSON.parse(raw) : {};
-                          const sid = selectedServerId || "default";
-                          const arr = Array.isArray(map[sid]) ? map[sid] : [];
-                          map[sid] = [...arr, { id, name }];
-                          localStorage.setItem(
-                            "voiceChannels",
-                            JSON.stringify(map)
-                          );
-                        } catch {}
+
+                        // Create voice channel in backend
+                        const token = localStorage.getItem("token");
+                        if (token && selectedServerId) {
+                          try {
+                            const newChannel = await createChannel(
+                              token,
+                              selectedServerId,
+                              name,
+                              "Voice Channel"
+                            );
+                            setVoiceChannels((prev) => [
+                              ...prev,
+                              { id: newChannel.id, name: newChannel.name },
+                            ]);
+                          } catch (error) {
+                            console.error(
+                              "Voice channel creation failed:",
+                              error
+                            );
+                            // Fallback to localStorage
+                            const id = `${Date.now().toString(36)}`;
+                            setVoiceChannels((prev) => [...prev, { id, name }]);
+                            try {
+                              const raw = localStorage.getItem("voiceChannels");
+                              const map = raw ? JSON.parse(raw) : {};
+                              const sid = selectedServerId || "default";
+                              const arr = Array.isArray(map[sid])
+                                ? map[sid]
+                                : [];
+                              map[sid] = [...arr, { id, name }];
+                              localStorage.setItem(
+                                "voiceChannels",
+                                JSON.stringify(map)
+                              );
+                            } catch {}
+                          }
+                        }
                         setShowCreateVoiceChannel(false);
                         setNewVoiceChannelName("");
                       }}
