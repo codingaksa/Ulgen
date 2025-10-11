@@ -64,19 +64,87 @@ const createChannel = async (req, res) => {
   try {
     const { serverId } = req.params;
     const { name, description, type } = req.body;
+
+    // Get all server members to add them to the new channel
+    const server = await Server.findById(serverId);
+    if (!server) {
+      return res.status(404).json({
+        success: false,
+        message: "Server not found",
+      });
+    }
+
+    // Create members array with all server members
+    const members = server.members.map((member) => ({
+      user: member.user,
+      role: member.role === "owner" ? "admin" : "member",
+    }));
+
     const channel = await Channel.create({
       name,
       description: description || "",
       type: type || "text",
       server: serverId,
       owner: req.user._id,
-      members: [{ user: req.user._id, role: "admin" }],
+      members: members,
     });
     res.status(201).json({ success: true, channel });
   } catch (e) {
     res.status(400).json({
       success: false,
       message: e.message || "Failed to create channel",
+    });
+  }
+};
+
+// Add all server members to all channels (migration helper)
+const syncChannelMembers = async (req, res) => {
+  try {
+    const { serverId } = req.params;
+
+    // Get server and all its members
+    const server = await Server.findById(serverId);
+    if (!server) {
+      return res.status(404).json({
+        success: false,
+        message: "Server not found",
+      });
+    }
+
+    // Get all channels in the server
+    const channels = await Channel.find({ server: serverId });
+
+    let updatedChannels = 0;
+    for (const channel of channels) {
+      let channelUpdated = false;
+
+      // Add all server members to this channel
+      for (const serverMember of server.members) {
+        if (!channel.isMember(serverMember.user)) {
+          channel.addMember(
+            serverMember.user,
+            serverMember.role === "owner" ? "admin" : "member"
+          );
+          channelUpdated = true;
+        }
+      }
+
+      if (channelUpdated) {
+        await channel.save();
+        updatedChannels++;
+      }
+    }
+
+    res.json({
+      success: true,
+      message: `Updated ${updatedChannels} channels with all server members`,
+      updatedChannels,
+      totalChannels: channels.length,
+    });
+  } catch (e) {
+    res.status(500).json({
+      success: false,
+      message: e.message || "Failed to sync channel members",
     });
   }
 };
@@ -218,6 +286,7 @@ module.exports = {
   createServer,
   listChannels,
   createChannel,
+  syncChannelMembers,
   deleteServer,
   updateServer,
   updateChannel,

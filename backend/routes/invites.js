@@ -145,8 +145,20 @@ router.post("/:token/consume", authenticateToken, async (req, res) => {
     const already = server.members.some(
       (m) => String(m.user) === String(userId)
     );
-    if (!already) server.members.push({ user: userId, role: "member" });
-    await server.save();
+    if (!already) {
+      server.members.push({ user: userId, role: "member" });
+      await server.save();
+
+      // Add user to all existing channels in the server
+      const Channel = require("../models/Channel");
+      const channels = await Channel.find({ server: updated.serverId });
+      for (const channel of channels) {
+        if (!channel.isMember(userId)) {
+          channel.addMember(userId, "member");
+          await channel.save();
+        }
+      }
+    }
 
     // Decrement remainingUses if finite, and delete if reached 0
     if (
