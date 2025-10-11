@@ -4,6 +4,12 @@ const inviteSchema = new mongoose.Schema(
   {
     tokenHash: { type: String, unique: true, index: true, required: true },
     serverId: { type: String, required: true },
+    channelId: { type: String }, // Optional: for channel-specific invites
+    inviteType: {
+      type: String,
+      enum: ["server", "channel"],
+      default: "server",
+    },
     createdAt: { type: Date, default: () => new Date(), index: true },
     expiresAt: { type: Date },
     // 0 => unlimited uses

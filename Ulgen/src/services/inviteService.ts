@@ -29,7 +29,12 @@ const apiRequest = async (url: string, options: RequestInit = {}) => {
 
 export async function createInviteLink(
   serverId: string,
-  opts?: { expiresInMs?: number; maxUses?: number }
+  opts?: {
+    expiresInMs?: number;
+    maxUses?: number;
+    channelId?: string;
+    inviteType?: "server" | "channel";
+  }
 ): Promise<string> {
   const origin = typeof window !== "undefined" ? window.location.origin : "";
   const isLocalhost =
@@ -125,6 +130,18 @@ export async function verifyInviteToken(
       return { valid: false };
     }
   }
+}
+
+export async function createChannelInviteLink(
+  serverId: string,
+  channelId: string,
+  opts?: { expiresInMs?: number; maxUses?: number }
+): Promise<string> {
+  return createInviteLink(serverId, {
+    ...opts,
+    channelId,
+    inviteType: 'channel'
+  });
 }
 
 export async function listInvites(serverId: string): Promise<

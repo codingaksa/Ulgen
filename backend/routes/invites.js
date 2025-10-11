@@ -12,7 +12,13 @@ function hashToken(token) {
 
 // Create invite
 router.post("/", authenticateToken, async (req, res) => {
-  const { serverId, expiresInMs, maxUses } = req.body || {};
+  const {
+    serverId,
+    channelId,
+    inviteType = "server",
+    expiresInMs,
+    maxUses,
+  } = req.body || {};
   if (!serverId) return res.status(400).json({ error: "serverId required" });
   try {
     // Ensure requester is member (preferably owner) of server
@@ -42,6 +48,8 @@ router.post("/", authenticateToken, async (req, res) => {
     await Invite.create({
       tokenHash,
       serverId,
+      channelId,
+      inviteType,
       createdAt: new Date(now),
       expiresAt,
       remainingUses,
@@ -154,7 +162,12 @@ router.post("/:token/consume", authenticateToken, async (req, res) => {
         );
     }
 
-    return res.json({ valid: true, serverId: updated.serverId });
+    return res.json({
+      valid: true,
+      serverId: updated.serverId,
+      channelId: updated.channelId,
+      inviteType: updated.inviteType,
+    });
   } catch (e) {
     return res.status(500).json({ error: "failed_to_consume" });
   }
