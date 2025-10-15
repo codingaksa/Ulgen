@@ -60,6 +60,7 @@ const VoiceChannel: React.FC<VoiceChannelProps> = ({ channelId, noUI }) => {
   const shareVideoRef = useRef<HTMLVideoElement>(null);
   const shareStreamRef = useRef<MediaStream | null>(null);
   const [selfLevel, setSelfLevel] = useState(0);
+  const lastLevelRef = useRef(0);
   const prevSpeakingRef = useRef<boolean>(false);
   const lastScheduledTimeRef = useRef<number>(0);
 
@@ -657,7 +658,11 @@ const VoiceChannel: React.FC<VoiceChannelProps> = ({ channelId, noUI }) => {
         for (let i = 0; i < buffer.length; i++) sum += buffer[i] * buffer[i];
         const rms = Math.sqrt(sum / buffer.length);
         const level = Math.max(0, Math.min(1, rms * 5));
-        setSelfLevel(level);
+        // Sadece anlamlı fark varsa UI'ı güncelle (layout jitter azaltma)
+        if (Math.abs(level - lastLevelRef.current) > 0.03) {
+          lastLevelRef.current = level;
+          setSelfLevel(level);
+        }
 
         // Speaking eşiği (düşük eşik ile daha duyarlı)
         const speaking = level > 0.04;
@@ -1044,7 +1049,7 @@ const VoiceChannel: React.FC<VoiceChannelProps> = ({ channelId, noUI }) => {
                         {user.id === socketRef.current?.id && (
                           <div className="absolute -bottom-3 left-1/2 -translate-x-1/2 w-28 h-1.5 bg-gray-700 rounded-full overflow-hidden">
                             <div
-                              className="h-full bg-green-500 transition-[width] duration-150"
+                              className="h-full bg-green-500"
                               style={{
                                 width: `${Math.round(selfLevel * 100)}%`,
                               }}
