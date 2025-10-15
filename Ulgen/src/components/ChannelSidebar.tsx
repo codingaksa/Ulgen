@@ -273,7 +273,15 @@ const ChannelSidebar: React.FC<ChannelSidebarProps> = React.memo(
 
         {/* Sesli Kanallar */}
         <section>
-          <div className="flex items-center justify-between mb-2">
+          <div
+            className="flex items-center justify-between mb-2 select-none"
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                onCreateVoice();
+              }
+            }}
+          >
             <h3 className="text-gray-400 text-xs font-semibold uppercase tracking-wide">
               SESLİ KANALLAR
             </h3>
@@ -289,9 +297,15 @@ const ChannelSidebar: React.FC<ChannelSidebarProps> = React.memo(
 
           <div className="space-y-1">
             {voiceChannels.length === 0 ? (
-              <div className="text-gray-500 text-sm bg-gray-800/50 border border-dashed border-gray-700 rounded-lg p-4 text-center">
+              <button
+                type="button"
+                onClick={onCreateVoice}
+                className="w-full text-gray-500 text-sm bg-gray-800/50 border border-dashed border-gray-700 rounded-lg p-4 text-center hover:text-white hover:bg-gray-700/60 focus:outline-none focus:ring-2 focus:ring-blue-600/40"
+                title="Sesli Kanal Oluştur"
+                aria-label="Sesli kanal oluştur"
+              >
                 Sesli kanal ekleyin.
-              </div>
+              </button>
             ) : (
               voiceChannels.map((vc) => (
                 <div key={vc.id} className="relative group rounded-lg">

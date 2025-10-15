@@ -1,6 +1,6 @@
 // models/Invite.js
-const mongoose = require('mongoose');
-const crypto = require('crypto');
+const mongoose = require("mongoose");
+const crypto = require("crypto");
 
 const { Schema, Types } = mongoose;
 const toId = (v) => (v instanceof Types.ObjectId ? v : new Types.ObjectId(v));
@@ -11,17 +11,27 @@ const inviteSchema = new Schema(
     tokenHash: { type: String, unique: true, index: true, required: true },
 
     // Kapsam: Sunucu zorunlu, kanal opsiyonel (channel varsa scope channel’dır)
-    serverId: { type: Schema.Types.ObjectId, ref: 'Server', required: true, index: true },
-    channelId: { type: Schema.Types.ObjectId, ref: 'Channel', default: null, index: true },
+    serverId: {
+      type: Schema.Types.ObjectId,
+      ref: "Server",
+      required: true,
+      index: true,
+    },
+    channelId: {
+      type: Schema.Types.ObjectId,
+      ref: "Channel",
+      default: null,
+      index: true,
+    },
 
     inviteType: {
       type: String,
-      enum: ['server', 'channel'],
-      default: 'server',
+      enum: ["server", "channel"],
+      default: "server",
     },
 
     // Kim oluşturdu? (opsiyonel ama audit için faydalı)
-    createdBy: { type: Schema.Types.ObjectId, ref: 'User', default: null },
+    createdBy: { type: Schema.Types.ObjectId, ref: "User", default: null },
 
     // Geçerlilik
     expiresAt: { type: Date, default: null }, // null => süresiz
@@ -33,7 +43,7 @@ const inviteSchema = new Schema(
     remainingUses: { type: Number, default: 1, min: 0 },
   },
   {
-    collection: 'invites',
+    collection: "invites",
     timestamps: true, // createdAt / updatedAt
     toJSON: { versionKey: false },
     toObject: { versionKey: false },
@@ -45,7 +55,9 @@ inviteSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });
 
 /* ----------------- Instance helpers ----------------- */
 inviteSchema.methods.isExpired = function (now = new Date()) {
-  return this.expiresAt instanceof Date && this.expiresAt.getTime() <= now.getTime();
+  return (
+    this.expiresAt instanceof Date && this.expiresAt.getTime() <= now.getTime()
+  );
 };
 
 inviteSchema.methods.hasUsesLeft = function () {
@@ -81,15 +93,24 @@ inviteSchema.methods.toPublic = function () {
  *  - limited (>0) ise 1 azalt
  * Başarılıysa invite döner; bulunamazsa null döner.
  */
-inviteSchema.statics.redeemByTokenRaw = async function (tokenRaw, { returnPublic = true } = {}) {
-  const tokenHash = crypto.createHash('sha256').update(String(tokenRaw)).digest('hex');
+inviteSchema.statics.redeemByTokenRaw = async function (
+  tokenRaw,
+  { returnPublic = true } = {}
+) {
+  const tokenHash = crypto
+    .createHash("sha256")
+    .update(String(tokenRaw))
+    .digest("hex");
   return this.redeemByTokenHash(tokenHash, { returnPublic });
 };
 
 /**
  * tokenHash ile atomik redeem (Mongo 4.2+ pipeline updates).
  */
-inviteSchema.statics.redeemByTokenHash = async function (tokenHash, { returnPublic = true } = {}) {
+inviteSchema.statics.redeemByTokenHash = async function (
+  tokenHash,
+  { returnPublic = true } = {}
+) {
   const now = new Date();
 
   // Koşullar:
@@ -108,7 +129,11 @@ inviteSchema.statics.redeemByTokenHash = async function (tokenHash, { returnPubl
     {
       $set: {
         remainingUses: {
-          $cond: [{ $eq: ['$remainingUses', 0] }, 0, { $subtract: ['$remainingUses', 1] }],
+          $cond: [
+            { $eq: ["$remainingUses", 0] },
+            0,
+            { $subtract: ["$remainingUses", 1] },
+          ],
         },
         updatedAt: now,
       },
@@ -122,4 +147,4 @@ inviteSchema.statics.redeemByTokenHash = async function (tokenHash, { returnPubl
   return returnPublic ? doc.toPublic() : doc;
 };
 
-module.exports = mongoose.model('Invite', inviteSchema);
+module.exports = mongoose.model("Invite", inviteSchema);

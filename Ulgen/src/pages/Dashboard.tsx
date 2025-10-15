@@ -113,6 +113,7 @@ const Dashboard: React.FC = () => {
   >([]);
   const [showCreateVoiceChannel, setShowCreateVoiceChannel] = useState(false);
   const [newVoiceChannelName, setNewVoiceChannelName] = useState("");
+  const [voiceServerId, setVoiceServerId] = useState<string | null>(null);
   const [activeVoiceId, setActiveVoiceId] = useState<string | null>(null); // aktif ses kanalı (presence için)
   const [showServerInvite, setShowServerInvite] = useState(false);
   const [serverInviteCopied, setServerInviteCopied] = useState(false);
@@ -407,7 +408,7 @@ const Dashboard: React.FC = () => {
                 })
               }
               onCreateVoice={() => {
-                if (!selectedServerId) return;
+                setVoiceServerId(selectedServerId || null);
                 setNewVoiceChannelName("");
                 setShowCreateVoiceChannel(true);
               }}
@@ -587,11 +588,28 @@ const Dashboard: React.FC = () => {
               </div>
             )}
             {showCreateVoiceChannel && (
-              <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50">
+              <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[9999]">
                 <div className="w-full max-w-sm bg-gray-800 border border-gray-700 rounded-2xl p-6 shadow-2xl">
                   <h3 className="text-white text-lg font-semibold mb-3">
                     Yeni Sesli Kanal
                   </h3>
+                  {(!selectedServerId || voiceServerId === null) && (
+                    <div className="mb-3">
+                      <label className="block text-gray-300 text-sm mb-2">Sunucu</label>
+                      <select
+                        value={voiceServerId || ""}
+                        onChange={(e) => setVoiceServerId(e.target.value || null)}
+                        className="w-full px-3 py-2 rounded bg-gray-900 border border-gray-700 text-gray-100"
+                      >
+                        <option value="">Sunucu seçin</option>
+                        {servers.map((s) => (
+                          <option key={s.id} value={s.id}>
+                            {s.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
                   <input
                     value={newVoiceChannelName}
                     onChange={(e) => setNewVoiceChannelName(e.target.value)}
@@ -609,14 +627,19 @@ const Dashboard: React.FC = () => {
                       onClick={async () => {
                         if (!newVoiceChannelName.trim()) return;
                         const name = newVoiceChannelName.trim();
+                        const targetServerId = selectedServerId || voiceServerId;
+                        if (!targetServerId) {
+                          showToast("error", "Önce bir sunucu seçin");
+                          return;
+                        }
 
                         // Create voice channel in backend
                         const token = localStorage.getItem("token");
-                        if (token && selectedServerId) {
+                        if (token && targetServerId) {
                           try {
                             const newChannel = await createChannel(
                               token,
-                              selectedServerId,
+                              targetServerId,
                               name,
                               "Voice Channel",
                               "voice"
