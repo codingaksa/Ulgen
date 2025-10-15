@@ -201,9 +201,11 @@ const createChannel = async (req, res) => {
     const server = await Server.findById(serverId);
     if (!server) return res.status(404).json({ success: false, message: 'Server not found' });
 
-    // Yetki: şimdilik sadece owner (istersen admin’e genişletebiliriz)
-    if (!isOwner(server, requesterId)) {
-      return res.status(403).json({ success: false, message: 'Only owner can create channels' });
+    // Yetki: owner veya admin kanal oluşturabilir
+    const creatorRole = server.getUserRole?.(requesterId);
+    const canCreate = isOwner(server, requesterId) || creatorRole === 'admin';
+    if (!canCreate) {
+      return res.status(403).json({ success: false, message: 'Only owner or admin can create channels' });
     }
 
     const { name, description, type } = req.body || {};
@@ -218,9 +220,11 @@ const createChannel = async (req, res) => {
       const key = String(m.user);
       if (uniq.has(key)) continue;
       uniq.add(key);
+      // Sunucu sahibi ve adminler kanalda da admin; diğerleri member
+      const elevated = m.role === 'owner' || m.role === 'admin';
       members.push({
         user: toId(m.user),
-        role: m.role === 'owner' ? 'admin' : 'member',
+        role: elevated ? 'admin' : 'member',
       });
     }
 
