@@ -83,9 +83,11 @@ export async function createChannel(
   const data = await res.json();
   if (!res.ok) throw new Error(data.message || "Kanal oluşturulamadı");
   return {
-    id: data.channel._id,
+    // Backend serverController.createChannel -> returns { channel: { id, name, description, type, server } }
+    id: data.channel.id || data.channel._id,
     name: data.channel.name,
     description: data.channel.description,
+    type: data.channel.type,
   };
 }
 
