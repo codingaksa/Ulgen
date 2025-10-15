@@ -20,7 +20,7 @@ const VerifyEmail: React.FC = () => {
       try {
         const API_BASE =
           (import.meta as any).env?.VITE_API_BASE ||
-          "http://localhost:5000/api";
+          "https://ulgen-backend.onrender.com/api";
         const response = await fetch(
           `${API_BASE}/auth/verify-email?token=${token}`,
           {

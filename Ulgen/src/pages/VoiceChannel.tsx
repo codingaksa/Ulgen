@@ -283,7 +283,8 @@ const VoiceChannel: React.FC<VoiceChannelProps> = ({ channelId, noUI }) => {
     if (socketRef.current) return;
 
     const SOCKET_BASE =
-      (import.meta as any).env?.VITE_SOCKET_BASE || "http://localhost:5000";
+      (import.meta as any).env?.VITE_SOCKET_BASE ||
+      "https://ulgen-backend.onrender.com";
     const socket = io(SOCKET_BASE, {
       transports: ["websocket", "polling"],
       reconnection: true,

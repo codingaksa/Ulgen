@@ -44,7 +44,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   // Centralized API base so we can switch between local and hosted easily
   const API_BASE =
-    (import.meta as any).env?.VITE_API_BASE || "http://localhost:5000/api";
+    (import.meta as any).env?.VITE_API_BASE ||
+    "https://ulgen-backend.onrender.com/api";
 
   // Sayfa yüklendiğinde token kontrolü
   useEffect(() => {
