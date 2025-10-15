@@ -1,113 +1,120 @@
+// models/User.js
 const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
 const crypto = require('crypto');
 
-const userSchema = new mongoose.Schema({
-  username: {
-    type: String,
-    required: [true, 'Username is required'],
-    unique: true,
-    trim: true,
-    minlength: [3, 'Username must be at least 3 characters long'],
-    maxlength: [20, 'Username cannot exceed 20 characters']
+const { Schema } = mongoose;
+
+const userSchema = new Schema(
+  {
+    username: {
+      type: String,
+      required: [true, 'Username is required'],
+      unique: true,
+      trim: true,
+      minlength: [3, 'Username must be at least 3 characters long'],
+      maxlength: [20, 'Username cannot exceed 20 characters']
+    },
+    email: {
+      type: String,
+      required: [true, 'Email is required'],
+      unique: true,
+      lowercase: true, // normalize
+      trim: true,
+      match: [/^\w+([.-]?\w+)*@\w+([.-]?\w+)*\.\w{2,}$/, 'Please enter a valid email']
+    },
+    password: {
+      type: String,
+      required: [true, 'Password is required'],
+      minlength: [6, 'Password must be at least 6 characters long'],
+      select: false
+    },
+    avatar: { type: String, default: null },
+
+    isOnline: { type: Boolean, default: false },
+    lastSeen: { type: Date, default: Date.now },
+
+    channels: [{ type: Schema.Types.ObjectId, ref: 'Channel', default: [] }],
+
+    // Email verification
+    isEmailVerified: { type: Boolean, default: false },
+    // SHA-256 HASH saklanır
+    emailVerificationToken: { type: String, default: null, select: false },
+    emailVerificationExpires: { type: Date, default: null, select: false },
+
+    // Password reset (SHA-256 HASH saklanır)
+    passwordResetToken: { type: String, default: null, select: false },
+    passwordResetExpires: { type: Date, default: null, select: false }
   },
-  email: {
-    type: String,
-    required: [true, 'Email is required'],
-    unique: true,
-    lowercase: true,
-    trim: true,
-    match: [/^\w+([.-]?\w+)*@\w+([.-]?\w+)*(\.\w{2,3})+$/, 'Please enter a valid email']
-  },
-  password: {
-    type: String,
-    required: [true, 'Password is required'],
-    minlength: [6, 'Password must be at least 6 characters long']
-  },
-  avatar: {
-    type: String,
-    default: null
-  },
-  isOnline: {
-    type: Boolean,
-    default: false
-  },
-  status: {
-    type: String,
-    enum: ['online', 'away', 'dnd', 'offline'],
-    default: 'online'
-  },
-  lastSeen: {
-    type: Date,
-    default: Date.now
-  },
-  channels: [{
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'Channel'
-  }],
-  isEmailVerified: {
-    type: Boolean,
-    default: false
-  },
-  emailVerificationToken: {
-    type: String,
-    default: null
-  },
-  emailVerificationExpires: {
-    type: Date,
-    default: null
-  },
-  passwordResetToken: {
-    type: String,
-    default: null
-  },
-  passwordResetExpires: {
-    type: Date,
-    default: null
+  {
+    timestamps: true,
+    toJSON: {
+      virtuals: true,
+      versionKey: false,
+      transform: (_doc, ret) => {
+        // Gizli alanları çıkar
+        delete ret.password;
+        delete ret.emailVerificationToken;
+        delete ret.emailVerificationExpires;
+        delete ret.passwordResetToken;
+        delete ret.passwordResetExpires;
+        return ret;
+      }
+    },
+    toObject: {
+      virtuals: true,
+      versionKey: false
+    }
   }
-}, {
-  timestamps: true
+);
+
+/* ---------- Virtuals ---------- */
+userSchema.virtual('id').get(function () {
+  return this._id.toString();
 });
 
+/* ---------- Normalization ---------- */
+userSchema.pre('validate', function normalize(next) {
+  if (typeof this.username === 'string') this.username = this.username.trim();
+  if (typeof this.email === 'string') this.email = this.email.trim().toLowerCase();
+  next();
+});
+
+/* ---------- Hooks ---------- */
 // Hash password before saving
-userSchema.pre('save', async function(next) {
+userSchema.pre('save', async function (next) {
   if (!this.isModified('password')) return next();
-  
   try {
     const salt = await bcrypt.genSalt(12);
     this.password = await bcrypt.hash(this.password, salt);
     next();
-  } catch (error) {
-    next(error);
+  } catch (err) {
+    next(err);
   }
 });
 
-// Compare password method
-userSchema.methods.comparePassword = async function(candidatePassword) {
-  return await bcrypt.compare(candidatePassword, this.password);
+/* ---------- Methods ---------- */
+// Compare password
+userSchema.methods.comparePassword = function (candidatePassword) {
+  return bcrypt.compare(candidatePassword, this.password);
 };
 
-// Generate email verification token
-userSchema.methods.generateEmailVerificationToken = function() {
-  const token = crypto.randomBytes(32).toString('hex');
-  this.emailVerificationToken = crypto.createHash('sha256').update(token).digest('hex');
-  this.emailVerificationExpires = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days
-  return token;
+// Generate email verification token (returns RAW hex, stores HASH)
+userSchema.methods.generateEmailVerificationToken = function () {
+  const raw = crypto.randomBytes(32).toString('hex');
+  const hash = crypto.createHash('sha256').update(raw).digest('hex');
+  this.emailVerificationToken = hash;
+  this.emailVerificationExpires = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 gün
+  return raw; // e-postada bu gönderilir
 };
 
-// Generate password reset token
-userSchema.methods.generatePasswordResetToken = function() {
-  const token = crypto.randomBytes(32).toString('hex');
-  this.passwordResetToken = crypto.createHash('sha256').update(token).digest('hex');
-  this.passwordResetExpires = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
-  return token;
-};
-
-// Remove password from JSON output
-userSchema.methods.toJSON = function() {
-  const user = this.toObject();
-  delete user.password;
-  return user;
+// Generate password reset token (returns RAW hex, stores HASH)
+userSchema.methods.generatePasswordResetToken = function () {
+  const raw = crypto.randomBytes(32).toString('hex');
+  const hash = crypto.createHash('sha256').update(raw).digest('hex');
+  this.passwordResetToken = hash;
+  this.passwordResetExpires = new Date(Date.now() + 10 * 60 * 1000); // 10 dk
+  return raw;
 };
 
 module.exports = mongoose.model('User', userSchema);

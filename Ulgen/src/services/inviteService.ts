@@ -140,7 +140,7 @@ export async function createChannelInviteLink(
   return createInviteLink(serverId, {
     ...opts,
     channelId,
-    inviteType: 'channel'
+    inviteType: "channel",
   });
 }
 

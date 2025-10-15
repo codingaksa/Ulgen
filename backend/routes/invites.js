@@ -1,187 +1,295 @@
-const express = require("express");
-const crypto = require("crypto");
-const Invite = require("../models/Invite");
-const Server = require("../models/Server");
-const { authenticateToken } = require("../middleware/auth");
+// routers/invites.js
+const express = require('express');
+const crypto = require('crypto');
+const mongoose = require('mongoose');
+
+const Invite = require('../models/Invite');
+const Server = require('../models/Server');
+const Channel = require('../models/Channel');
+const { authenticateToken } = require('../middleware/auth');
 
 const router = express.Router();
+const { Types } = mongoose;
 
-function hashToken(token) {
-  return crypto.createHash("sha256").update(token).digest("hex");
-}
+const isValidId = (v) => Types.ObjectId.isValid(String(v));
+const toId = (v) => (v instanceof Types.ObjectId ? v : new Types.ObjectId(v));
+const getUid = (req) => String((req?.user && (req.user._id || req.user.id || req.user.userId)) || '');
+const hashToken = (t) => crypto.createHash('sha256').update(String(t)).digest('hex');
 
-// Create invite
-router.post("/", authenticateToken, async (req, res) => {
-  const {
-    serverId,
-    channelId,
-    inviteType = "server",
-    expiresInMs,
-    maxUses,
-  } = req.body || {};
-  if (!serverId) return res.status(400).json({ error: "serverId required" });
+const resolveClientUrl = () => {
+  const direct = process.env.CLIENT_URL || process.env.PUBLIC_CLIENT_URL;
+  if (direct && direct.trim()) return direct.trim();
+  const list = process.env.CLIENT_URLS;
+  if (list && list.includes(',')) {
+    const first = list.split(',')[0].trim();
+    if (first) return first;
+  }
+  return '';
+};
+
+/* =========================
+ * CREATE INVITE (owner only)
+ * POST /api/invites
+ * body: { serverId, channelId?, inviteType?('server'|'channel'), expiresInMs?, maxUses? (0 = unlimited) }
+ * ========================= */
+router.post('/', authenticateToken, async (req, res) => {
   try {
-    // Ensure requester is member (preferably owner) of server
-    const server = await Server.findById(serverId);
-    if (!server) return res.status(404).json({ error: "server_not_found" });
-    const requesterId = String(
-      (req.user && (req.user._id || req.user.id)) || ""
-    );
-    const isOwner = String(server.owner) === requesterId;
-    const isMember = server.members.some((m) => String(m.user) === requesterId);
-    if (!isOwner && !isMember)
-      return res.status(403).json({ error: "forbidden" });
+    const { serverId, channelId, inviteType, expiresInMs, maxUses } = req.body || {};
+    if (!serverId || !isValidId(serverId)) {
+      return res.status(400).json({ success: false, message: 'Invalid serverId' });
+    }
+    if (channelId && !isValidId(channelId)) {
+      return res.status(400).json({ success: false, message: 'Invalid channelId' });
+    }
 
-    const token = crypto.randomBytes(24).toString("base64url");
+    const server = await Server.findById(serverId).select('owner _id');
+    if (!server) return res.status(404).json({ success: false, message: 'Server not found' });
+
+    const requesterId = getUid(req);
+    const isOwner = server.owner?.equals?.(requesterId) || String(server.owner) === requesterId;
+    if (!isOwner) {
+      return res.status(403).json({ success: false, message: 'Only server owner can create invites' });
+    }
+
+    if (channelId) {
+      const ch = await Channel.findOne({ _id: toId(channelId), server: server._id }).select('_id');
+      if (!ch) return res.status(404).json({ success: false, message: 'Channel not found in this server' });
+    }
+
+    const token = crypto.randomBytes(24).toString('base64url'); // URL-safe
     const tokenHash = hashToken(token);
-    const now = Date.now();
-    const expiresAt = new Date(
-      now +
-        (Number.isFinite(expiresInMs)
-          ? Math.max(0, Number(expiresInMs))
-          : 3 * 24 * 60 * 60 * 1000)
-    );
-    const remainingUses = Number.isFinite(maxUses)
-      ? Math.max(0, Number(maxUses))
-      : 1;
 
-    await Invite.create({
+    const now = Date.now();
+    const ttl =
+      Number.isFinite(expiresInMs) ? Math.max(0, Number(expiresInMs)) : 3 * 24 * 60 * 60 * 1000; // default 3 gün
+    const expiresAt = ttl > 0 ? new Date(now + ttl) : null; // null => süresiz
+    const remainingUses = Number.isFinite(maxUses) ? Math.max(0, Number(maxUses)) : 1; // 0 => unlimited
+
+    const doc = await Invite.create({
       tokenHash,
-      serverId,
-      channelId,
-      inviteType,
-      createdAt: new Date(now),
+      serverId: toId(serverId),
+      channelId: channelId ? toId(channelId) : null,
+      inviteType: inviteType || (channelId ? 'channel' : 'server'),
+      createdBy: toId(requesterId),
       expiresAt,
-      remainingUses,
+      remainingUses
     });
-    return res.json({
+
+    const clientUrl = resolveClientUrl();
+    const urlHint = clientUrl
+      ? `${clientUrl}/invite?token=${encodeURIComponent(token)}`
+      : `/invite?token=${encodeURIComponent(token)}`;
+
+    return res.status(201).json({
+      success: true,
       token,
-      expiresAt: expiresAt.getTime(),
-      maxUses: remainingUses,
+      invite: doc.toPublic(),
+      urlHint
     });
   } catch (e) {
-    return res.status(500).json({ error: "failed_to_create" });
+    console.error('Create invite error:', e);
+    return res.status(500).json({ success: false, message: 'failed_to_create' });
   }
 });
 
-// List invites
-router.get("/", authenticateToken, async (req, res) => {
-  const { serverId } = req.query || {};
-  if (!serverId || typeof serverId !== "string")
-    return res.status(400).json({ error: "serverId required" });
+/* =========================
+ * LIST INVITES (owner only)
+ * GET /api/invites?serverId=...
+ * ========================= */
+router.get('/', authenticateToken, async (req, res) => {
   try {
-    const docs = await Invite.find({ serverId }, { tokenHash: 0 })
+    const { serverId } = req.query || {};
+    if (!serverId || !isValidId(serverId)) {
+      return res.status(400).json({ success: false, message: 'Invalid serverId' });
+    }
+
+    const server = await Server.findById(serverId).select('owner _id');
+    if (!server) return res.status(404).json({ success: false, message: 'Server not found' });
+
+    const requesterId = getUid(req);
+    const isOwner = server.owner?.equals?.(requesterId) || String(server.owner) === requesterId;
+    if (!isOwner) {
+      return res.status(403).json({ success: false, message: 'Only owner can list invites' });
+    }
+
+    const docs = await Invite.find({ serverId: toId(serverId) }, { tokenHash: 0 })
       .sort({ createdAt: -1 })
       .lean();
+
     return res.json({
+      success: true,
       invites: docs.map((d) => ({
-        id: d._id,
-        serverId: d.serverId,
-        createdAt: new Date(d.createdAt).getTime(),
+        id: String(d._id),
+        inviteType: d.inviteType,
+        serverId: String(d.serverId),
+        channelId: d.channelId ? String(d.channelId) : null,
+        createdAt: d.createdAt ? new Date(d.createdAt).getTime() : new Date().getTime(),
         expiresAt: d.expiresAt ? new Date(d.expiresAt).getTime() : null,
-        remainingUses: d.remainingUses,
-      })),
+        remainingUses: d.remainingUses
+      }))
     });
   } catch (e) {
-    return res.status(500).json({ error: "failed_to_list" });
+    console.error('List invites error:', e);
+    return res.status(500).json({ success: false, message: 'failed_to_list' });
   }
 });
 
-// Revoke invite by id
-router.delete("/:id", authenticateToken, async (req, res) => {
-  const { id } = req.params;
+/* =========================
+ * REVOKE INVITE (owner only)
+ * DELETE /api/invites/:id
+ * ========================= */
+router.delete('/:id', authenticateToken, async (req, res) => {
   try {
-    const del = await Invite.deleteOne({ _id: id });
-    return res.json({ ok: del.deletedCount > 0 });
+    const { id } = req.params;
+    if (!isValidId(id)) return res.status(400).json({ success: false, message: 'Invalid invite id' });
+
+    const inv = await Invite.findById(id);
+    if (!inv) return res.status(404).json({ success: false, message: 'Invite not found' });
+
+    const server = await Server.findById(inv.serverId).select('owner _id');
+    if (!server) return res.status(404).json({ success: false, message: 'Server not found' });
+
+    const requesterId = getUid(req);
+    const isOwner = server.owner?.equals?.(requesterId) || String(server.owner) === requesterId;
+    if (!isOwner) {
+      return res.status(403).json({ success: false, message: 'Only owner can revoke invites' });
+    }
+
+    await inv.deleteOne();
+    return res.json({ success: true });
   } catch (e) {
-    return res.status(500).json({ error: "failed_to_revoke" });
+    console.error('Revoke invite error:', e);
+    return res.status(500).json({ success: false, message: 'failed_to_revoke' });
   }
 });
 
-// Verify invite (does not consume)
-router.get("/:token", async (req, res) => {
-  const token = req.params.token;
-  const tokenHash = hashToken(token);
+/* =========================
+ * VERIFY INVITE (public)
+ * GET /api/invites/:token
+ * (sadece geçerlilik bilgisi döner; tüketmez)
+ * ========================= */
+router.get('/:token', async (req, res) => {
   try {
+    const token = String(req.params.token || '');
+    if (!token) return res.status(400).json({ success: false, message: 'Token required' });
+
+    const tokenHash = hashToken(token);
     const inv = await Invite.findOne({ tokenHash }).lean();
-    if (!inv) return res.json({ valid: false });
+    if (!inv) return res.json({ success: true, valid: false });
+
     const now = Date.now();
-    const valid =
-      now < new Date(inv.expiresAt).getTime() &&
-      (inv.remainingUses === 0 || inv.remainingUses > 0);
+    const notExpired = !inv.expiresAt || now < new Date(inv.expiresAt).getTime();
+    const usable = inv.remainingUses === 0 || inv.remainingUses > 0;
+    const valid = notExpired && usable;
+
     return res.json({
+      success: true,
       valid,
-      serverId: valid ? inv.serverId : undefined,
+      inviteType: valid ? inv.inviteType : undefined,
+      serverId: valid ? String(inv.serverId) : undefined,
+      channelId: valid && inv.channelId ? String(inv.channelId) : null,
       remainingUses: inv.remainingUses,
-      expiresAt: new Date(inv.expiresAt).getTime(),
+      expiresAt: inv.expiresAt ? new Date(inv.expiresAt).getTime() : null
     });
-  } catch {
-    return res.status(500).json({ error: "failed_to_verify" });
+  } catch (e) {
+    console.error('Verify invite error:', e);
+    return res.status(500).json({ success: false, message: 'failed_to_verify' });
   }
 });
 
-// Consume invite (atomic): also auto-join server
-router.post("/:token/consume", authenticateToken, async (req, res) => {
-  const token = req.params.token;
-  const tokenHash = hashToken(token);
+/* =========================
+ * CONSUME INVITE (auth required)
+ * POST /api/invites/:token/consume
+ * - Kullanım hakkını atomik azaltır (unlimited: azaltmaz)
+ * - server/channel üyeliği ekler
+ * ========================= */
+router.post('/:token/consume', authenticateToken, async (req, res) => {
+  const session = await mongoose.startSession();
   try {
+    const token = String(req.params.token || '');
+    if (!token) return res.status(400).json({ success: false, message: 'Token required' });
+
+    const userId = getUid(req);
+    if (!isValidId(userId)) return res.status(401).json({ success: false, message: 'Unauthorized' });
+
+    const tokenHash = hashToken(token);
     const now = new Date();
-    const updated = await Invite.findOneAndUpdate(
-      {
+
+    await session.withTransaction(async () => {
+      // ⚠️ ÖNEMLİ: iki ayrı $or yerine $and ile grupla
+      const query = {
         tokenHash,
-        expiresAt: { $gt: now },
-        $or: [{ remainingUses: 0 }, { remainingUses: { $gt: 0 } }],
-      },
-      { $inc: { remainingUses: 0 } }, // we will decrement manually after joining if finite
-      { new: true }
-    );
-    if (!updated) return res.json({ valid: false });
+        $and: [
+          { $or: [{ expiresAt: null }, { expiresAt: { $gt: now } }] },
+          { $or: [{ remainingUses: 0 }, { remainingUses: { $gt: 0 } }] }
+        ]
+      };
 
-    // Ensure membership
-    const server = await Server.findById(updated.serverId);
-    if (!server) return res.json({ valid: false });
-    const userId = req.user && (req.user._id || req.user.id);
-    if (!userId) return res.status(401).json({ valid: false });
-    const already = server.members.some(
-      (m) => String(m.user) === String(userId)
-    );
-    if (!already) {
-      server.members.push({ user: userId, role: "member" });
-      await server.save();
+      // 1) Geçerli daveti bul ve (limited ise) 1 düşür (pipeline update)
+      const invite = await Invite.findOneAndUpdate(
+        query,
+        [
+          {
+            $set: {
+              remainingUses: {
+                $cond: [{ $eq: ['$remainingUses', 0] }, 0, { $subtract: ['$remainingUses', 1] }]
+              },
+              updatedAt: now
+            }
+          }
+        ],
+        { new: true, session }
+      );
 
-      // Add user to all existing channels in the server
-      const Channel = require("../models/Channel");
-      const channels = await Channel.find({ server: updated.serverId });
-      for (const channel of channels) {
+      if (!invite) {
+        throw new Error('INVALID_INVITE');
+      }
+
+      // 2) Server üyeliği ekle (yoksa)
+      const server = await Server.findById(invite.serverId).session(session);
+      if (!server) throw new Error('SERVER_NOT_FOUND');
+
+      const alreadyServer = server.members?.some((m) => String(m.user) === String(userId));
+      if (!alreadyServer) {
+        server.members.push({ user: toId(userId), role: 'member' });
+        await server.save({ session });
+      }
+
+      // 3) Channel davetiyesi ise ilgili kanala da ekle (yoksa)
+      if (invite.inviteType === 'channel' && invite.channelId) {
+        const channel = await Channel.findOne({ _id: invite.channelId, server: invite.serverId }).session(session);
+        if (!channel) throw new Error('CHANNEL_NOT_FOUND');
+
         if (!channel.isMember(userId)) {
-          channel.addMember(userId, "member");
-          await channel.save();
+          channel.addMember(userId, 'member'); // kapasite/aktiflik kontrolü model metodu yapıyor
+          await channel.save({ session });
         }
       }
-    }
 
-    // Decrement remainingUses if finite, and delete if reached 0
-    if (
-      typeof updated.remainingUses === "number" &&
-      updated.remainingUses > 0
-    ) {
-      const next = updated.remainingUses - 1;
-      if (next <= 0) await Invite.deleteOne({ _id: updated._id });
-      else
-        await Invite.updateOne(
-          { _id: updated._id },
-          { $set: { remainingUses: next } }
-        );
-    }
+      // 4) Eğer kullanım hakkı sıfıra inmişse davetiyeyi sil (clean-up)
+      // Not: unlimited (0) hiç düşmedi; buraya sadece limited ve 0'a inen gelir
+      if (invite.remainingUses === 0) {
+        await Invite.deleteOne({ _id: invite._id }, { session });
+      }
 
-    return res.json({
-      valid: true,
-      serverId: updated.serverId,
-      channelId: updated.channelId,
-      inviteType: updated.inviteType,
+      res.json({
+        success: true,
+        scope: invite.inviteType,
+        serverId: String(invite.serverId),
+        channelId: invite.channelId ? String(invite.channelId) : null
+      });
     });
   } catch (e) {
-    return res.status(500).json({ error: "failed_to_consume" });
+    console.error('Consume invite error:', e);
+    if (e.message === 'INVALID_INVITE') {
+      return res.status(400).json({ success: false, message: 'Invalid or expired invite' });
+    }
+    if (e.message === 'SERVER_NOT_FOUND' || e.message === 'CHANNEL_NOT_FOUND') {
+      return res.status(404).json({ success: false, message: e.message });
+    }
+    return res.status(500).json({ success: false, message: 'failed_to_consume' });
+  } finally {
+    await session.endSession();
   }
 });
 

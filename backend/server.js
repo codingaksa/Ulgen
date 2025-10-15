@@ -1,28 +1,33 @@
+// server.js
+require("dotenv").config();
+
 const express = require("express");
 const mongoose = require("mongoose");
 const cors = require("cors");
+const helmet = require("helmet");
+const compression = require("compression");
+const rateLimit = require("express-rate-limit");
 const { createServer } = require("http");
 const { Server } = require("socket.io");
-require("dotenv").config();
 
 const app = express();
-const server = createServer(app);
+const httpServer = createServer(app);
 
-// Socket.IO setup
+/* ---------------- CORS / Origins ---------------- */
 const corsOriginsRaw =
   process.env.CLIENT_URLS || process.env.CLIENT_URL || "http://localhost:5173";
+
 const allowedOrigins = corsOriginsRaw
   .split(",")
   .map((o) => o.trim())
   .filter(Boolean);
 
-// Build permissive origin matcher supporting explicit list + common wildcards
 const vercelPreviewRegex = /^https:\/\/[a-z0-9-]+\.vercel\.app$/i;
 const netlifyPreviewRegex = /^https:\/\/[a-z0-9-]+--[a-z0-9-]+\.netlify\.app$/i;
-const renderStaticRegex = /^https:\/\/[a-z0-9-]+\.onrender\.com$/i; // allow same-host testing if needed
+const renderStaticRegex = /^https:\/\/[a-z0-9-]+\.onrender\.com$/i;
 
 function isOriginAllowed(origin) {
-  if (!origin) return true; // non-browser or same-origin
+  if (!origin) return true; // non-browser veya same-origin
   if (allowedOrigins.includes(origin)) return true;
   if (vercelPreviewRegex.test(origin)) return true;
   if (netlifyPreviewRegex.test(origin)) return true;
@@ -31,68 +36,94 @@ function isOriginAllowed(origin) {
 }
 
 const corsOptions = {
-  origin: (origin, callback) => {
-    if (isOriginAllowed(origin)) return callback(null, true);
-    return callback(new Error("Not allowed by CORS"));
-  },
+  origin: (origin, cb) =>
+    isOriginAllowed(origin)
+      ? cb(null, true)
+      : cb(new Error("Not allowed by CORS")),
   credentials: true,
   methods: ["GET", "HEAD", "PUT", "PATCH", "POST", "DELETE", "OPTIONS"],
   allowedHeaders: ["Content-Type", "Authorization"],
   optionsSuccessStatus: 204,
 };
 
-const io = new Server(server, {
-  cors: {
-    origin: (origin, callback) => {
-      if (isOriginAllowed(origin)) return callback(null, true);
-      return callback(new Error("Not allowed by CORS"));
-    },
-    methods: ["GET", "POST"],
-    credentials: true,
-  },
-});
+/* ---------------- App Middleware ---------------- */
+app.set("trust proxy", 1); // rate-limit ve gerçek IP için gerekli (proxy/CDN arkasında)
 
-// Middleware
 app.use((req, res, next) => {
-  // help shared caches vary properly when multiple origins are allowed
   res.setHeader("Vary", "Origin");
   next();
 });
+
 app.use(cors(corsOptions));
-// Ensure preflight is responded to for all routes (avoid Express path matching on "*")
-app.use((req, res, next) => {
-  if (req.method === "OPTIONS") {
-    const origin = req.headers.origin;
-    if (isOriginAllowed(origin)) {
-      res.header("Access-Control-Allow-Origin", origin || "*");
-      res.header("Access-Control-Allow-Credentials", "true");
-      res.header(
-        "Access-Control-Allow-Methods",
-        "GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS"
-      );
-      res.header("Access-Control-Allow-Headers", "Content-Type, Authorization");
-    }
-    return res.sendStatus(204);
-  }
-  return next();
-});
+
+// Güvenlik başlıkları (API için minimal CSP)
+app.use(
+  helmet({
+    contentSecurityPolicy: false, // API'de genellikle gereksiz; frontend kendi CSP'sini uygular
+    crossOriginResourcePolicy: { policy: "cross-origin" },
+  })
+);
+
+// Sıkıştırma
+app.use(compression());
+
+// Body parsers
 app.use(express.json({ limit: "25mb" }));
 app.use(express.urlencoded({ extended: true, limit: "25mb" }));
 
-// Database connection
-mongoose
-  .connect(process.env.MONGODB_URI || "mongodb://localhost:27017/ulgen")
-  .then(() => console.log("✅ MongoDB connected successfully"))
-  .catch((err) => console.error("❌ MongoDB connection error:", err));
+/* ---------------- Database ---------------- */
+const MONGO_URI = process.env.MONGODB_URI || "mongodb://localhost:27017/ulgen";
 
-// Routes
-app.use("/api/auth", require("./routes/auth"));
+mongoose
+  .connect(MONGO_URI)
+  .then(() => console.log("✅ MongoDB connected"))
+  .catch((err) => {
+    console.error("❌ MongoDB connection error:", err);
+    process.exitCode = 1;
+  });
+
+mongoose.connection.on("error", (err) =>
+  console.error("❌ MongoDB runtime error:", err)
+);
+mongoose.connection.on("disconnected", () =>
+  console.warn("⚠️ MongoDB disconnected")
+);
+
+/* ---------------- Rate Limits ---------------- */
+// Global (tüm API): 15 dakikada 1000 istek (CDN arkası için makul)
+const globalLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 1000,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    success: false,
+    message: "Too many requests, please try again later.",
+  },
+});
+
+// Auth özel: 15 dakikada 20 istek (brute force’a karşı daha sıkı)
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    success: false,
+    message: "Too many auth requests, please try again later.",
+  },
+});
+
+app.use("/api", globalLimiter);
+
+/* ---------------- Routes ---------------- */
+app.use("/api/auth", authLimiter, require("./routes/auth"));
 app.use("/api/channels", require("./routes/channels"));
 app.use("/api/servers", require("./routes/servers"));
 app.use("/api/invites", require("./routes/invites"));
 
 // Health check
-app.get("/api/health", (req, res) => {
+app.get("/api/health", (_req, res) => {
   res.json({
     status: "OK",
     message: "Ulgen Backend API is running",
@@ -100,106 +131,118 @@ app.get("/api/health", (req, res) => {
   });
 });
 
-// Socket.IO connection handling
-// Basic in-memory room-user map for presence (dev only)
-const roomUsers = new Map(); // roomId -> Map(socketId -> { username, isMuted, isDeafened, isSpeaking })
+/* ---------------- Socket.IO ---------------- */
+const io = new Server(httpServer, {
+  cors: {
+    origin: (origin, cb) =>
+      isOriginAllowed(origin)
+        ? cb(null, true)
+        : cb(new Error("Not allowed by CORS")),
+    methods: ["GET", "POST"],
+    credentials: true,
+  },
+});
+
+// Basit (dev-only) presence
+const roomUsers = new Map();
 
 io.on("connection", (socket) => {
-  console.log("🔌 User connected:", socket.id);
+  console.log("🔌 connected:", socket.id);
 
-  // Join voice channel
   socket.on("join-channel", (channelId) => {
-    try {
-      if (!channelId) return;
-      socket.join(channelId);
-      if (!roomUsers.has(channelId)) roomUsers.set(channelId, new Map());
-      // user-joined (username will be supplied by presence-update later)
-      socket.to(channelId).emit("user-joined", { userId: socket.id });
-    } catch {}
+    if (!channelId) return;
+    socket.join(channelId);
+    if (!roomUsers.has(channelId)) roomUsers.set(channelId, new Map());
+    socket.to(channelId).emit("user-joined", { userId: socket.id });
   });
 
-  // Leave voice channel
   socket.on("leave-channel", (channelId) => {
-    try {
-      if (!channelId) return;
-      socket.leave(channelId);
-      socket.to(channelId).emit("user-left", { userId: socket.id });
-      const map = roomUsers.get(channelId);
-      if (map) map.delete(socket.id);
-    } catch {}
+    if (!channelId) return;
+    socket.leave(channelId);
+    socket.to(channelId).emit("user-left", { userId: socket.id });
+    const map = roomUsers.get(channelId);
+    if (map) map.delete(socket.id);
+    if (map && map.size === 0) roomUsers.delete(channelId);
   });
 
-  // Presence update
   socket.on("presence-update", (payload) => {
-    try {
-      const { channelId, username, isMuted, isDeafened, isSpeaking } =
-        payload || {};
-      if (!channelId) return;
-      if (!roomUsers.has(channelId)) roomUsers.set(channelId, new Map());
-      const map = roomUsers.get(channelId);
-      map.set(socket.id, { username, isMuted, isDeafened, isSpeaking });
-      socket.to(channelId).emit("presence-update", {
-        userId: socket.id,
-        username,
-        isMuted,
-        isDeafened,
-        isSpeaking,
-      });
-    } catch {}
+    const { channelId, username, isMuted, isDeafened, isSpeaking } =
+      payload || {};
+    if (!channelId) return;
+    if (!roomUsers.has(channelId)) roomUsers.set(channelId, new Map());
+    const map = roomUsers.get(channelId);
+    map.set(socket.id, { username, isMuted, isDeafened, isSpeaking });
+    socket.to(channelId).emit("presence-update", {
+      userId: socket.id,
+      username,
+      isMuted,
+      isDeafened,
+      isSpeaking,
+    });
   });
 
-  // Voice data transmission
   socket.on("voice-data", (data) => {
-    try {
-      const { channelId, audioData, sampleRate } = data || {};
-      if (!channelId) return;
-      socket.to(channelId).emit("voice-data", {
-        userId: socket.id,
-        audioData,
-        sampleRate,
-      });
-    } catch {}
+    const { channelId, audioData, sampleRate } = data || {};
+    if (!channelId) return;
+    socket.to(channelId).emit("voice-data", {
+      userId: socket.id,
+      audioData,
+      sampleRate,
+    });
   });
 
-  // User disconnect
   socket.on("disconnect", () => {
-    try {
-      for (const [roomId, map] of roomUsers.entries()) {
-        if (map.has(socket.id)) {
-          map.delete(socket.id);
-          socket.to(roomId).emit("user-left", { userId: socket.id });
-        }
+    for (const [roomId, map] of roomUsers.entries()) {
+      if (map.has(socket.id)) {
+        map.delete(socket.id);
+        socket.to(roomId).emit("user-left", { userId: socket.id });
       }
-    } catch {}
-    console.log("🔌 User disconnected:", socket.id);
+      if (map.size === 0) roomUsers.delete(roomId);
+    }
+    console.log("🔌 disconnected:", socket.id);
   });
 });
 
-// Error handling middleware
-app.use((err, req, res, next) => {
-  console.error("❌ Error:", err.stack);
+/* ---------------- Error & 404 ---------------- */
+app.use((err, _req, res, _next) => {
+  console.error("❌ Error:", err.stack || err);
   res.status(500).json({
     success: false,
     message: "Something went wrong!",
     error:
       process.env.NODE_ENV === "development"
-        ? err.message
+        ? String(err.message || err)
         : "Internal server error",
   });
 });
 
-// 404 handler
 app.use((req, res) => {
-  res.status(404).json({
-    success: false,
-    message: "Route not found",
-  });
+  res.status(404).json({ success: false, message: "Route not found" });
 });
 
-const PORT = process.env.PORT || 5000;
+/* ---------------- Server start & Graceful shutdown ---------------- */
+const PORT = Number(process.env.PORT || 5000);
 
-server.listen(PORT, () => {
-  console.log(`🚀 Server running on port ${PORT}`);
-  console.log(`📡 Socket.IO server ready`);
-  console.log(`🌐 Environment: ${process.env.NODE_ENV || "development"}`);
+const listener = httpServer.listen(PORT, () => {
+  console.log(`🚀 Server listening on http://localhost:${PORT}`);
+  console.log("📡 Socket.IO up");
+  console.log(`🌐 NODE_ENV: ${process.env.NODE_ENV || "development"}`);
 });
+
+async function shutdown(signal) {
+  console.log(`\n🛑 ${signal} received. Shutting down gracefully...`);
+  try {
+    await new Promise((resolve) => listener.close(resolve));
+    await mongoose.connection.close();
+    io.close();
+    console.log("✅ Clean shutdown complete.");
+    process.exit(0);
+  } catch (e) {
+    console.error("❌ Error during shutdown:", e);
+    process.exit(1);
+  }
+}
+process.on("SIGINT", () => shutdown("SIGINT"));
+process.on("SIGTERM", () => shutdown("SIGTERM"));
+
+module.exports = { app, io };

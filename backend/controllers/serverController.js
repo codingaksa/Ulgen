@@ -1,286 +1,380 @@
-const mongoose = require("mongoose");
-const Server = require("../models/Server");
-const Channel = require("../models/Channel");
+// controllers/serverController.js
+const mongoose = require('mongoose');
+const Server = require('../models/Server');
+const Channel = require('../models/Channel');
 
-// List servers for current user
+const { Types } = mongoose;
+const toId = (v) => (v instanceof Types.ObjectId ? v : new Types.ObjectId(v));
+const isValidId = (v) => Types.ObjectId.isValid(String(v));
+const getRequesterId = (req) => {
+  const v = req?.user && (req.user._id || req.user.userId || req.user.id);
+  return v ? String(v) : '';
+};
+const isOwner = (server, userId) =>
+  server?.owner && (server.owner.equals?.(userId) || String(server.owner) === String(userId));
+
+/* ================== Servers ================== */
+
+// @desc    List servers for current user
+// @route   GET /api/servers
+// @access  Private
 const listServers = async (req, res) => {
   try {
-    const servers = await Server.find({ "members.user": req.user._id }).select(
-      "name icon"
-    );
-    res.json({ success: true, servers });
+    const requesterId = getRequesterId(req);
+    if (!isValidId(requesterId)) {
+      return res.status(401).json({ success: false, message: 'Unauthorized' });
+    }
+
+    const servers = await Server.find({ 'members.user': toId(requesterId) })
+      .select('name icon owner')
+      .lean();
+
+    // id’leri düz string’e çevirerek API’yi stabilize edelim
+    const data = servers.map((s) => ({
+      id: String(s._id),
+      name: s.name,
+      icon: s.icon || null,
+      owner: String(s.owner),
+    }));
+
+    return res.json({ success: true, servers: data });
   } catch (e) {
-    res
-      .status(500)
-      .json({ success: false, message: "Failed to fetch servers" });
+    console.error('List servers error:', e);
+    return res.status(500).json({ success: false, message: 'Failed to fetch servers' });
   }
 };
 
-// Create server
+// @desc    Create server
+// @route   POST /api/servers
+// @access  Private
 const createServer = async (req, res) => {
   try {
-    const { name, icon } = req.body;
+    const requesterId = getRequesterId(req);
+    if (!isValidId(requesterId)) {
+      return res.status(401).json({ success: false, message: 'Unauthorized' });
+    }
+
+    const { name, icon } = req.body || {};
     if (!name || !name.trim()) {
-      return res
-        .status(400)
-        .json({ success: false, message: "Server name is required" });
+      return res.status(400).json({ success: false, message: 'Server name is required' });
     }
-    if (!req.user || !req.user._id) {
-      return res.status(401).json({ success: false, message: "Unauthorized" });
-    }
+
     const server = await Server.create({
       name: name.trim(),
       icon: icon || null,
-      owner: new mongoose.Types.ObjectId(req.user._id),
-      members: [{ user: req.user._id, role: "owner" }],
+      owner: toId(requesterId),
+      members: [{ user: toId(requesterId), role: 'owner' }],
     });
-    res.status(201).json({ success: true, server });
+
+    return res.status(201).json({
+      success: true,
+      server: {
+        id: String(server._id),
+        name: server.name,
+        icon: server.icon,
+        owner: String(server.owner),
+      },
+    });
   } catch (e) {
-    console.error("Create server error:", e);
-    res.status(500).json({
-      success: false,
-      message: e.message || "Failed to create server",
-    });
+    console.error('Create server error:', e);
+    return res.status(500).json({ success: false, message: e.message || 'Failed to create server' });
   }
 };
 
-// List channels in a server
+// @desc    Update server (owner only)
+// @route   PUT /api/servers/:serverId
+// @access  Private
+const updateServer = async (req, res) => {
+  try {
+    const { serverId } = req.params;
+    if (!isValidId(serverId)) {
+      return res.status(400).json({ success: false, message: 'Invalid server id' });
+    }
+
+    const server = await Server.findById(serverId);
+    if (!server) return res.status(404).json({ success: false, message: 'Server not found' });
+
+    const requesterId = getRequesterId(req);
+    if (!isOwner(server, requesterId)) {
+      return res.status(403).json({ success: false, message: 'Only owner can update the server' });
+    }
+
+    const { name, icon } = req.body || {};
+    if (typeof name === 'string' && name.trim()) server.name = name.trim();
+    if (icon !== undefined) server.icon = icon || null;
+
+    await server.save();
+    return res.json({
+      success: true,
+      server: {
+        id: String(server._id),
+        name: server.name,
+        icon: server.icon,
+        owner: String(server.owner),
+      },
+    });
+  } catch (e) {
+    console.error('Update server error:', e);
+    return res.status(500).json({ success: false, message: 'Failed to update server' });
+  }
+};
+
+// @desc    Delete server (owner only)
+// @route   DELETE /api/servers/:serverId
+// @access  Private
+const deleteServer = async (req, res) => {
+  try {
+    const { serverId } = req.params;
+    if (!isValidId(serverId)) {
+      return res.status(400).json({ success: false, message: 'Invalid server id' });
+    }
+
+    const server = await Server.findById(serverId);
+    if (!server) return res.status(404).json({ success: false, message: 'Server not found' });
+
+    const requesterId = getRequesterId(req);
+    if (!isOwner(server, requesterId)) {
+      return res.status(403).json({ success: false, message: 'Only owner can delete the server' });
+    }
+
+    // Sunucu kanallarını kaldır (soft delete istemiyorsan full delete)
+    await Channel.deleteMany({ server: server._id });
+    await server.deleteOne();
+
+    return res.json({ success: true });
+  } catch (e) {
+    console.error('Delete server error:', e);
+    return res.status(500).json({ success: false, message: 'Failed to delete server' });
+  }
+};
+
+/* ========= Channels in a Server ========= */
+
+// @desc    List channels in a server (only for members)
+// @route   GET /api/servers/:serverId/channels
+// @access  Private
 const listChannels = async (req, res) => {
   try {
     const { serverId } = req.params;
-    const channels = await Channel.find({ server: serverId }).select(
-      "name description"
-    );
-    res.json({ success: true, channels });
+    if (!isValidId(serverId)) {
+      return res.status(400).json({ success: false, message: 'Invalid server id' });
+    }
+
+    const requesterId = getRequesterId(req);
+    const server = await Server.findById(serverId).select('_id owner members');
+    if (!server) return res.status(404).json({ success: false, message: 'Server not found' });
+
+    const isMember = server.members?.some((m) => String(m.user) === String(requesterId));
+    if (!isMember) {
+      return res.status(403).json({ success: false, message: 'Access denied' });
+    }
+
+    const channels = await Channel.find({ server: serverId, isActive: { $ne: false } })
+      .select('name description type')
+      .lean();
+
+    const data = channels.map((c) => ({
+      id: String(c._id),
+      name: c.name,
+      description: c.description || '',
+      type: c.type,
+    }));
+
+    return res.json({ success: true, channels: data });
   } catch (e) {
-    res
-      .status(500)
-      .json({ success: false, message: "Failed to fetch channels" });
+    console.error('List channels error:', e);
+    return res.status(500).json({ success: false, message: 'Failed to fetch channels' });
   }
 };
 
-// Create channel in a server
+// @desc    Create channel in a server (owner only by default)
+// @route   POST /api/servers/:serverId/channels
+// @access  Private
 const createChannel = async (req, res) => {
   try {
     const { serverId } = req.params;
-    const { name, description, type } = req.body;
+    if (!isValidId(serverId)) {
+      return res.status(400).json({ success: false, message: 'Invalid server id' });
+    }
 
-    // Get all server members to add them to the new channel
+    const requesterId = getRequesterId(req);
     const server = await Server.findById(serverId);
-    if (!server) {
-      return res.status(404).json({
-        success: false,
-        message: "Server not found",
+    if (!server) return res.status(404).json({ success: false, message: 'Server not found' });
+
+    // Yetki: şimdilik sadece owner (istersen admin’e genişletebiliriz)
+    if (!isOwner(server, requesterId)) {
+      return res.status(403).json({ success: false, message: 'Only owner can create channels' });
+    }
+
+    const { name, description, type } = req.body || {};
+    if (!name || !name.trim()) {
+      return res.status(400).json({ success: false, message: 'Channel name is required' });
+    }
+
+    // Sunucudaki tüm üyeleri kanala ekle (owner => admin; diğerleri => member), tekilleştir
+    const uniq = new Set();
+    const members = [];
+    for (const m of server.members || []) {
+      const key = String(m.user);
+      if (uniq.has(key)) continue;
+      uniq.add(key);
+      members.push({
+        user: toId(m.user),
+        role: m.role === 'owner' ? 'admin' : 'member',
       });
     }
 
-    // Create members array with all server members
-    const members = server.members.map((member) => ({
-      user: member.user,
-      role: member.role === "owner" ? "admin" : "member",
-    }));
-
     const channel = await Channel.create({
-      name,
-      description: description || "",
-      type: type || "text",
-      server: serverId,
-      owner: req.user._id,
-      members: members,
+      name: name.trim(),
+      description: description || '',
+      type: type || 'text',
+      server: server._id,
+      owner: toId(requesterId),
+      members,
+      isActive: true,
     });
-    res.status(201).json({ success: true, channel });
+
+    return res.status(201).json({
+      success: true,
+      channel: {
+        id: String(channel._id),
+        name: channel.name,
+        description: channel.description || '',
+        type: channel.type,
+        server: String(channel.server),
+      },
+    });
   } catch (e) {
-    res.status(400).json({
-      success: false,
-      message: e.message || "Failed to create channel",
-    });
+    console.error('Create channel error:', e);
+    return res.status(500).json({ success: false, message: e.message || 'Failed to create channel' });
   }
 };
 
-// Add all server members to all channels (migration helper)
+// @desc    Update channel (rename/description) (owner only of server)
+// @route   PUT /api/servers/:serverId/channels/:channelId
+// @access  Private
+const updateChannel = async (req, res) => {
+  try {
+    const { serverId, channelId } = req.params;
+    if (!isValidId(serverId) || !isValidId(channelId)) {
+      return res.status(400).json({ success: false, message: 'Invalid id' });
+    }
+
+    const server = await Server.findById(serverId);
+    if (!server) return res.status(404).json({ success: false, message: 'Server not found' });
+
+    const requesterId = getRequesterId(req);
+    if (!isOwner(server, requesterId)) {
+      return res.status(403).json({ success: false, message: 'Only owner can update channel' });
+    }
+
+    const channel = await Channel.findOne({ _id: channelId, server: server._id });
+    if (!channel) return res.status(404).json({ success: false, message: 'Channel not found' });
+
+    const { name, description } = req.body || {};
+    if (typeof name === 'string' && name.trim()) channel.name = name.trim();
+    if (description !== undefined) channel.description = description || '';
+
+    await channel.save();
+    return res.json({
+      success: true,
+      channel: {
+        id: String(channel._id),
+        name: channel.name,
+        description: channel.description || '',
+        type: channel.type,
+        server: String(channel.server),
+      },
+    });
+  } catch (e) {
+    console.error('Update channel error:', e);
+    return res.status(500).json({ success: false, message: 'Failed to update channel' });
+  }
+};
+
+// @desc    Delete channel (owner only of server)
+// @route   DELETE /api/servers/:serverId/channels/:channelId
+// @access  Private
+const deleteChannel = async (req, res) => {
+  try {
+    const { serverId, channelId } = req.params;
+    if (!isValidId(serverId) || !isValidId(channelId)) {
+      return res.status(400).json({ success: false, message: 'Invalid id' });
+    }
+
+    const server = await Server.findById(serverId);
+    if (!server) return res.status(404).json({ success: false, message: 'Server not found' });
+
+    const requesterId = getRequesterId(req);
+    if (!isOwner(server, requesterId)) {
+      return res.status(403).json({ success: false, message: 'Only owner can delete channel' });
+    }
+
+    const ch = await Channel.findOneAndDelete({ _id: channelId, server: server._id });
+    if (!ch) return res.status(404).json({ success: false, message: 'Channel not found' });
+
+    return res.json({ success: true });
+  } catch (e) {
+    console.error('Delete channel error:', e);
+    return res.status(500).json({ success: false, message: 'Failed to delete channel' });
+  }
+};
+
+/* ============ Migration helper ============ */
+
+// @desc    Add all server members to all channels
+// @route   POST /api/servers/:serverId/sync-channel-members
+// @access  Private (owner)
 const syncChannelMembers = async (req, res) => {
   try {
     const { serverId } = req.params;
-
-    // Get server and all its members
-    const server = await Server.findById(serverId);
-    if (!server) {
-      return res.status(404).json({
-        success: false,
-        message: "Server not found",
-      });
+    if (!isValidId(serverId)) {
+      return res.status(400).json({ success: false, message: 'Invalid server id' });
     }
 
-    // Get all channels in the server
-    const channels = await Channel.find({ server: serverId });
+    const server = await Server.findById(serverId);
+    if (!server) return res.status(404).json({ success: false, message: 'Server not found' });
+
+    const requesterId = getRequesterId(req);
+    if (!isOwner(server, requesterId)) {
+      return res.status(403).json({ success: false, message: 'Only owner can sync members' });
+    }
+
+    const channels = await Channel.find({ server: server._id });
 
     let updatedChannels = 0;
     for (const channel of channels) {
-      let channelUpdated = false;
+      let changed = false;
+      const seen = new Set(channel.members.map((m) => String(m.user)));
 
-      // Add all server members to this channel
-      for (const serverMember of server.members) {
-        if (!channel.isMember(serverMember.user)) {
-          channel.addMember(
-            serverMember.user,
-            serverMember.role === "owner" ? "admin" : "member"
-          );
-          channelUpdated = true;
-        }
+      for (const m of server.members || []) {
+        const key = String(m.user);
+        if (seen.has(key)) continue;
+        seen.add(key);
+        channel.addMember?.(m.user, m.role === 'owner' ? 'admin' : 'member');
+        changed = true;
       }
 
-      if (channelUpdated) {
+      if (changed) {
         await channel.save();
         updatedChannels++;
       }
     }
 
-    res.json({
+    return res.json({
       success: true,
       message: `Updated ${updatedChannels} channels with all server members`,
       updatedChannels,
       totalChannels: channels.length,
     });
   } catch (e) {
-    res.status(500).json({
-      success: false,
-      message: e.message || "Failed to sync channel members",
-    });
+    console.error('Sync channel members error:', e);
+    return res
+      .status(500)
+      .json({ success: false, message: e.message || 'Failed to sync channel members' });
   }
 };
 
-// Delete server (owner only)
-const deleteServer = async (req, res) => {
-  try {
-    const { serverId } = req.params;
-    const server = await Server.findById(serverId);
-    if (!server)
-      return res
-        .status(404)
-        .json({ success: false, message: "Server not found" });
-    const requesterId = String(
-      (req.user && (req.user._id || req.user.userId || req.user.id)) || ""
-    );
-    if (String(server.owner) !== requesterId) {
-      return res
-        .status(403)
-        .json({ success: false, message: "Only owner can delete the server" });
-    }
-    // Remove channels belonging to server
-    await Channel.deleteMany({
-      server: { $in: [serverId, new mongoose.Types.ObjectId(serverId)] },
-    });
-    await server.deleteOne();
-    res.json({ success: true });
-  } catch (e) {
-    console.error("Delete server error:", e);
-    res
-      .status(500)
-      .json({ success: false, message: "Failed to delete server" });
-  }
-};
-
-// Update server (owner only)
-const updateServer = async (req, res) => {
-  try {
-    const { serverId } = req.params;
-    const { name, icon } = req.body;
-    const server = await Server.findById(serverId);
-    if (!server)
-      return res
-        .status(404)
-        .json({ success: false, message: "Server not found" });
-    const requesterId = String(
-      (req.user && (req.user._id || req.user.userId)) || ""
-    );
-    if (String(server.owner) !== requesterId) {
-      return res
-        .status(403)
-        .json({ success: false, message: "Only owner can update the server" });
-    }
-    if (name && name.trim()) server.name = name.trim();
-    if (icon !== undefined) server.icon = icon || null;
-    await server.save();
-    res.json({ success: true, server });
-  } catch (e) {
-    console.error("Update server error:", e);
-    res
-      .status(500)
-      .json({ success: false, message: "Failed to update server" });
-  }
-};
-
-// Update channel (rename)
-const updateChannel = async (req, res) => {
-  try {
-    const { serverId, channelId } = req.params;
-    const { name, description } = req.body;
-    const server = await Server.findById(serverId);
-    if (!server)
-      return res
-        .status(404)
-        .json({ success: false, message: "Server not found" });
-    const requesterId = String(
-      (req.user && (req.user._id || req.user.userId)) || ""
-    );
-    if (String(server.owner) !== requesterId) {
-      return res
-        .status(403)
-        .json({ success: false, message: "Only owner can update channel" });
-    }
-    const channel = await Channel.findOne({
-      _id: channelId,
-      server: new mongoose.Types.ObjectId(serverId),
-    });
-    if (!channel)
-      return res
-        .status(404)
-        .json({ success: false, message: "Channel not found" });
-    if (name && name.trim()) channel.name = name.trim();
-    if (description !== undefined) channel.description = description || "";
-    await channel.save();
-    res.json({ success: true, channel });
-  } catch (e) {
-    console.error("Update channel error:", e);
-    res
-      .status(500)
-      .json({ success: false, message: "Failed to update channel" });
-  }
-};
-
-// Delete channel
-const deleteChannel = async (req, res) => {
-  try {
-    const { serverId, channelId } = req.params;
-    const server = await Server.findById(serverId);
-    if (!server)
-      return res
-        .status(404)
-        .json({ success: false, message: "Server not found" });
-    const requesterId = String(
-      (req.user && (req.user._id || req.user.userId)) || ""
-    );
-    if (String(server.owner) !== requesterId) {
-      return res
-        .status(403)
-        .json({ success: false, message: "Only owner can delete channel" });
-    }
-    const ch = await Channel.findOneAndDelete({
-      _id: channelId,
-      server: new mongoose.Types.ObjectId(serverId),
-    });
-    if (!ch)
-      return res
-        .status(404)
-        .json({ success: false, message: "Channel not found" });
-    res.json({ success: true });
-  } catch (e) {
-    console.error("Delete channel error:", e);
-    res
-      .status(500)
-      .json({ success: false, message: "Failed to delete channel" });
-  }
-};
 module.exports = {
   listServers,
   createServer,

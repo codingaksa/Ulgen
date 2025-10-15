@@ -7,6 +7,7 @@ export interface ChannelItem {
   id: string;
   name: string;
   description?: string;
+  type?: string;
 }
 
 const API =
@@ -57,9 +58,10 @@ export async function getChannels(
   const data = await res.json();
   if (!res.ok) throw new Error(data.message || "Kanallar alınamadı");
   return data.channels.map((c: any) => ({
-    id: c._id,
+    id: c._id || c.id,
     name: c.name,
     description: c.description,
+    type: c.type,
   }));
 }
 

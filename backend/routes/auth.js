@@ -1,5 +1,7 @@
-const express = require('express');
+// routes/auth.js
+const express = require("express");
 const router = express.Router();
+
 const {
   register,
   login,
@@ -12,24 +14,35 @@ const {
   resetPassword,
   changePassword,
   deleteAccount,
-  updateStatus
-} = require('../controllers/authController');
-const { authenticateToken } = require('../middleware/auth');
+  // updateStatus,
+} = require("../controllers/authController");
 
-// Public routes
-router.post('/register', register);
-router.post('/login', login);
-router.get('/verify-email', verifyEmail);
-router.post('/resend-verification', resendVerification);
-router.post('/forgot-password', forgotPassword);
-router.post('/reset-password', resetPassword);
+const { authenticateToken } = require("../middleware/auth");
 
-// Protected routes
-router.get('/me', authenticateToken, getMe);
-router.post('/logout', authenticateToken, logout);
-router.put('/profile', authenticateToken, updateProfile);
-router.put('/change-password', authenticateToken, changePassword);
-router.put('/status', authenticateToken, updateStatus);
-router.delete('/delete-account', authenticateToken, deleteAccount);
+/* ================== Public Auth ================== */
+
+// Kayıt & Giriş
+router.post("/register", register);
+router.post("/login", login);
+
+// E-posta doğrulama akışı
+router.get("/verify-email", verifyEmail); // ?token=...
+router.post("/resend-verification", resendVerification);
+
+// Şifre sıfırlama akışı
+router.post("/forgot-password", forgotPassword);
+router.post("/reset-password", resetPassword);
+
+/* ================== Private (Token gerekli) ================== */
+
+router.get("/me", authenticateToken, getMe);
+router.post("/logout", authenticateToken, logout);
+
+router.put("/profile", authenticateToken, updateProfile);
+router.put("/change-password", authenticateToken, changePassword);
+
+// router.put('/status', authenticateToken, updateStatus); // Controller eklenirse aç
+
+router.delete("/delete-account", authenticateToken, deleteAccount);
 
 module.exports = router;
