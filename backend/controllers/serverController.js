@@ -1,17 +1,18 @@
 // controllers/serverController.js
-const mongoose = require('mongoose');
-const Server = require('../models/Server');
-const Channel = require('../models/Channel');
+const mongoose = require("mongoose");
+const Server = require("../models/Server");
+const Channel = require("../models/Channel");
 
 const { Types } = mongoose;
 const toId = (v) => (v instanceof Types.ObjectId ? v : new Types.ObjectId(v));
 const isValidId = (v) => Types.ObjectId.isValid(String(v));
 const getRequesterId = (req) => {
   const v = req?.user && (req.user._id || req.user.userId || req.user.id);
-  return v ? String(v) : '';
+  return v ? String(v) : "";
 };
 const isOwner = (server, userId) =>
-  server?.owner && (server.owner.equals?.(userId) || String(server.owner) === String(userId));
+  server?.owner &&
+  (server.owner.equals?.(userId) || String(server.owner) === String(userId));
 
 /* ================== Servers ================== */
 
@@ -22,11 +23,11 @@ const listServers = async (req, res) => {
   try {
     const requesterId = getRequesterId(req);
     if (!isValidId(requesterId)) {
-      return res.status(401).json({ success: false, message: 'Unauthorized' });
+      return res.status(401).json({ success: false, message: "Unauthorized" });
     }
 
-    const servers = await Server.find({ 'members.user': toId(requesterId) })
-      .select('name icon owner')
+    const servers = await Server.find({ "members.user": toId(requesterId) })
+      .select("name icon owner")
       .lean();
 
     // id’leri düz string’e çevirerek API’yi stabilize edelim
@@ -39,8 +40,10 @@ const listServers = async (req, res) => {
 
     return res.json({ success: true, servers: data });
   } catch (e) {
-    console.error('List servers error:', e);
-    return res.status(500).json({ success: false, message: 'Failed to fetch servers' });
+    console.error("List servers error:", e);
+    return res
+      .status(500)
+      .json({ success: false, message: "Failed to fetch servers" });
   }
 };
 
@@ -51,19 +54,21 @@ const createServer = async (req, res) => {
   try {
     const requesterId = getRequesterId(req);
     if (!isValidId(requesterId)) {
-      return res.status(401).json({ success: false, message: 'Unauthorized' });
+      return res.status(401).json({ success: false, message: "Unauthorized" });
     }
 
     const { name, icon } = req.body || {};
     if (!name || !name.trim()) {
-      return res.status(400).json({ success: false, message: 'Server name is required' });
+      return res
+        .status(400)
+        .json({ success: false, message: "Server name is required" });
     }
 
     const server = await Server.create({
       name: name.trim(),
       icon: icon || null,
       owner: toId(requesterId),
-      members: [{ user: toId(requesterId), role: 'owner' }],
+      members: [{ user: toId(requesterId), role: "owner" }],
     });
 
     return res.status(201).json({
@@ -76,8 +81,13 @@ const createServer = async (req, res) => {
       },
     });
   } catch (e) {
-    console.error('Create server error:', e);
-    return res.status(500).json({ success: false, message: e.message || 'Failed to create server' });
+    console.error("Create server error:", e);
+    return res
+      .status(500)
+      .json({
+        success: false,
+        message: e.message || "Failed to create server",
+      });
   }
 };
 
@@ -88,19 +98,26 @@ const updateServer = async (req, res) => {
   try {
     const { serverId } = req.params;
     if (!isValidId(serverId)) {
-      return res.status(400).json({ success: false, message: 'Invalid server id' });
+      return res
+        .status(400)
+        .json({ success: false, message: "Invalid server id" });
     }
 
     const server = await Server.findById(serverId);
-    if (!server) return res.status(404).json({ success: false, message: 'Server not found' });
+    if (!server)
+      return res
+        .status(404)
+        .json({ success: false, message: "Server not found" });
 
     const requesterId = getRequesterId(req);
     if (!isOwner(server, requesterId)) {
-      return res.status(403).json({ success: false, message: 'Only owner can update the server' });
+      return res
+        .status(403)
+        .json({ success: false, message: "Only owner can update the server" });
     }
 
     const { name, icon } = req.body || {};
-    if (typeof name === 'string' && name.trim()) server.name = name.trim();
+    if (typeof name === "string" && name.trim()) server.name = name.trim();
     if (icon !== undefined) server.icon = icon || null;
 
     await server.save();
@@ -114,8 +131,10 @@ const updateServer = async (req, res) => {
       },
     });
   } catch (e) {
-    console.error('Update server error:', e);
-    return res.status(500).json({ success: false, message: 'Failed to update server' });
+    console.error("Update server error:", e);
+    return res
+      .status(500)
+      .json({ success: false, message: "Failed to update server" });
   }
 };
 
@@ -126,15 +145,22 @@ const deleteServer = async (req, res) => {
   try {
     const { serverId } = req.params;
     if (!isValidId(serverId)) {
-      return res.status(400).json({ success: false, message: 'Invalid server id' });
+      return res
+        .status(400)
+        .json({ success: false, message: "Invalid server id" });
     }
 
     const server = await Server.findById(serverId);
-    if (!server) return res.status(404).json({ success: false, message: 'Server not found' });
+    if (!server)
+      return res
+        .status(404)
+        .json({ success: false, message: "Server not found" });
 
     const requesterId = getRequesterId(req);
     if (!isOwner(server, requesterId)) {
-      return res.status(403).json({ success: false, message: 'Only owner can delete the server' });
+      return res
+        .status(403)
+        .json({ success: false, message: "Only owner can delete the server" });
     }
 
     // Sunucu kanallarını kaldır (soft delete istemiyorsan full delete)
@@ -143,8 +169,10 @@ const deleteServer = async (req, res) => {
 
     return res.json({ success: true });
   } catch (e) {
-    console.error('Delete server error:', e);
-    return res.status(500).json({ success: false, message: 'Failed to delete server' });
+    console.error("Delete server error:", e);
+    return res
+      .status(500)
+      .json({ success: false, message: "Failed to delete server" });
   }
 };
 
@@ -157,33 +185,45 @@ const listChannels = async (req, res) => {
   try {
     const { serverId } = req.params;
     if (!isValidId(serverId)) {
-      return res.status(400).json({ success: false, message: 'Invalid server id' });
+      return res
+        .status(400)
+        .json({ success: false, message: "Invalid server id" });
     }
 
     const requesterId = getRequesterId(req);
-    const server = await Server.findById(serverId).select('_id owner members');
-    if (!server) return res.status(404).json({ success: false, message: 'Server not found' });
+    const server = await Server.findById(serverId).select("_id owner members");
+    if (!server)
+      return res
+        .status(404)
+        .json({ success: false, message: "Server not found" });
 
-    const isMember = server.members?.some((m) => String(m.user) === String(requesterId));
+    const isMember = server.members?.some(
+      (m) => String(m.user) === String(requesterId)
+    );
     if (!isMember) {
-      return res.status(403).json({ success: false, message: 'Access denied' });
+      return res.status(403).json({ success: false, message: "Access denied" });
     }
 
-    const channels = await Channel.find({ server: serverId, isActive: { $ne: false } })
-      .select('name description type')
+    const channels = await Channel.find({
+      server: serverId,
+      isActive: { $ne: false },
+    })
+      .select("name description type")
       .lean();
 
     const data = channels.map((c) => ({
       id: String(c._id),
       name: c.name,
-      description: c.description || '',
+      description: c.description || "",
       type: c.type,
     }));
 
     return res.json({ success: true, channels: data });
   } catch (e) {
-    console.error('List channels error:', e);
-    return res.status(500).json({ success: false, message: 'Failed to fetch channels' });
+    console.error("List channels error:", e);
+    return res
+      .status(500)
+      .json({ success: false, message: "Failed to fetch channels" });
   }
 };
 
@@ -194,23 +234,35 @@ const createChannel = async (req, res) => {
   try {
     const { serverId } = req.params;
     if (!isValidId(serverId)) {
-      return res.status(400).json({ success: false, message: 'Invalid server id' });
+      return res
+        .status(400)
+        .json({ success: false, message: "Invalid server id" });
     }
 
     const requesterId = getRequesterId(req);
     const server = await Server.findById(serverId);
-    if (!server) return res.status(404).json({ success: false, message: 'Server not found' });
+    if (!server)
+      return res
+        .status(404)
+        .json({ success: false, message: "Server not found" });
 
     // Yetki: owner veya admin kanal oluşturabilir
     const creatorRole = server.getUserRole?.(requesterId);
-    const canCreate = isOwner(server, requesterId) || creatorRole === 'admin';
+    const canCreate = isOwner(server, requesterId) || creatorRole === "admin";
     if (!canCreate) {
-      return res.status(403).json({ success: false, message: 'Only owner or admin can create channels' });
+      return res
+        .status(403)
+        .json({
+          success: false,
+          message: "Only owner or admin can create channels",
+        });
     }
 
     const { name, description, type } = req.body || {};
     if (!name || !name.trim()) {
-      return res.status(400).json({ success: false, message: 'Channel name is required' });
+      return res
+        .status(400)
+        .json({ success: false, message: "Channel name is required" });
     }
 
     // Sunucudaki tüm üyeleri kanala ekle (owner => admin; diğerleri => member), tekilleştir
@@ -221,17 +273,17 @@ const createChannel = async (req, res) => {
       if (uniq.has(key)) continue;
       uniq.add(key);
       // Sunucu sahibi ve adminler kanalda da admin; diğerleri member
-      const elevated = m.role === 'owner' || m.role === 'admin';
+      const elevated = m.role === "owner" || m.role === "admin";
       members.push({
         user: toId(m.user),
-        role: elevated ? 'admin' : 'member',
+        role: elevated ? "admin" : "member",
       });
     }
 
     const channel = await Channel.create({
       name: name.trim(),
-      description: description || '',
-      type: type || 'text',
+      description: description || "",
+      type: type || "text",
       server: server._id,
       owner: toId(requesterId),
       members,
@@ -243,14 +295,19 @@ const createChannel = async (req, res) => {
       channel: {
         id: String(channel._id),
         name: channel.name,
-        description: channel.description || '',
+        description: channel.description || "",
         type: channel.type,
         server: String(channel.server),
       },
     });
   } catch (e) {
-    console.error('Create channel error:', e);
-    return res.status(500).json({ success: false, message: e.message || 'Failed to create channel' });
+    console.error("Create channel error:", e);
+    return res
+      .status(500)
+      .json({
+        success: false,
+        message: e.message || "Failed to create channel",
+      });
   }
 };
 
@@ -261,23 +318,36 @@ const updateChannel = async (req, res) => {
   try {
     const { serverId, channelId } = req.params;
     if (!isValidId(serverId) || !isValidId(channelId)) {
-      return res.status(400).json({ success: false, message: 'Invalid id' });
+      return res.status(400).json({ success: false, message: "Invalid id" });
     }
 
     const server = await Server.findById(serverId);
-    if (!server) return res.status(404).json({ success: false, message: 'Server not found' });
+    if (!server)
+      return res
+        .status(404)
+        .json({ success: false, message: "Server not found" });
 
     const requesterId = getRequesterId(req);
-    if (!isOwner(server, requesterId)) {
-      return res.status(403).json({ success: false, message: 'Only owner can update channel' });
+    const updaterRole = server.getUserRole?.(requesterId);
+    const canUpdate = isOwner(server, requesterId) || updaterRole === "admin";
+    if (!canUpdate) {
+      return res
+        .status(403)
+        .json({ success: false, message: "Only owner or admin can update channel" });
     }
 
-    const channel = await Channel.findOne({ _id: channelId, server: server._id });
-    if (!channel) return res.status(404).json({ success: false, message: 'Channel not found' });
+    const channel = await Channel.findOne({
+      _id: channelId,
+      server: server._id,
+    });
+    if (!channel)
+      return res
+        .status(404)
+        .json({ success: false, message: "Channel not found" });
 
     const { name, description } = req.body || {};
-    if (typeof name === 'string' && name.trim()) channel.name = name.trim();
-    if (description !== undefined) channel.description = description || '';
+    if (typeof name === "string" && name.trim()) channel.name = name.trim();
+    if (description !== undefined) channel.description = description || "";
 
     await channel.save();
     return res.json({
@@ -285,14 +355,16 @@ const updateChannel = async (req, res) => {
       channel: {
         id: String(channel._id),
         name: channel.name,
-        description: channel.description || '',
+        description: channel.description || "",
         type: channel.type,
         server: String(channel.server),
       },
     });
   } catch (e) {
-    console.error('Update channel error:', e);
-    return res.status(500).json({ success: false, message: 'Failed to update channel' });
+    console.error("Update channel error:", e);
+    return res
+      .status(500)
+      .json({ success: false, message: "Failed to update channel" });
   }
 };
 
@@ -303,24 +375,39 @@ const deleteChannel = async (req, res) => {
   try {
     const { serverId, channelId } = req.params;
     if (!isValidId(serverId) || !isValidId(channelId)) {
-      return res.status(400).json({ success: false, message: 'Invalid id' });
+      return res.status(400).json({ success: false, message: "Invalid id" });
     }
 
     const server = await Server.findById(serverId);
-    if (!server) return res.status(404).json({ success: false, message: 'Server not found' });
+    if (!server)
+      return res
+        .status(404)
+        .json({ success: false, message: "Server not found" });
 
     const requesterId = getRequesterId(req);
-    if (!isOwner(server, requesterId)) {
-      return res.status(403).json({ success: false, message: 'Only owner can delete channel' });
+    const deleterRole = server.getUserRole?.(requesterId);
+    const canDelete = isOwner(server, requesterId) || deleterRole === "admin";
+    if (!canDelete) {
+      return res
+        .status(403)
+        .json({ success: false, message: "Only owner or admin can delete channel" });
     }
 
-    const ch = await Channel.findOneAndDelete({ _id: channelId, server: server._id });
-    if (!ch) return res.status(404).json({ success: false, message: 'Channel not found' });
+    const ch = await Channel.findOneAndDelete({
+      _id: channelId,
+      server: server._id,
+    });
+    if (!ch)
+      return res
+        .status(404)
+        .json({ success: false, message: "Channel not found" });
 
     return res.json({ success: true });
   } catch (e) {
-    console.error('Delete channel error:', e);
-    return res.status(500).json({ success: false, message: 'Failed to delete channel' });
+    console.error("Delete channel error:", e);
+    return res
+      .status(500)
+      .json({ success: false, message: "Failed to delete channel" });
   }
 };
 
@@ -333,15 +420,22 @@ const syncChannelMembers = async (req, res) => {
   try {
     const { serverId } = req.params;
     if (!isValidId(serverId)) {
-      return res.status(400).json({ success: false, message: 'Invalid server id' });
+      return res
+        .status(400)
+        .json({ success: false, message: "Invalid server id" });
     }
 
     const server = await Server.findById(serverId);
-    if (!server) return res.status(404).json({ success: false, message: 'Server not found' });
+    if (!server)
+      return res
+        .status(404)
+        .json({ success: false, message: "Server not found" });
 
     const requesterId = getRequesterId(req);
     if (!isOwner(server, requesterId)) {
-      return res.status(403).json({ success: false, message: 'Only owner can sync members' });
+      return res
+        .status(403)
+        .json({ success: false, message: "Only owner can sync members" });
     }
 
     const channels = await Channel.find({ server: server._id });
@@ -355,7 +449,7 @@ const syncChannelMembers = async (req, res) => {
         const key = String(m.user);
         if (seen.has(key)) continue;
         seen.add(key);
-        channel.addMember?.(m.user, m.role === 'owner' ? 'admin' : 'member');
+        channel.addMember?.(m.user, m.role === "owner" ? "admin" : "member");
         changed = true;
       }
 
@@ -372,10 +466,13 @@ const syncChannelMembers = async (req, res) => {
       totalChannels: channels.length,
     });
   } catch (e) {
-    console.error('Sync channel members error:', e);
+    console.error("Sync channel members error:", e);
     return res
       .status(500)
-      .json({ success: false, message: e.message || 'Failed to sync channel members' });
+      .json({
+        success: false,
+        message: e.message || "Failed to sync channel members",
+      });
   }
 };
 
