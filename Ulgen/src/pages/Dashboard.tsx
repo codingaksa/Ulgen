@@ -1406,32 +1406,43 @@ const Dashboard: React.FC = () => {
                           showToast("error", "Geçerli bir davet linki girin");
                           return;
                         }
-                        
+
                         // Önce doğrula
                         const verifyRes = await verifyInviteToken(token);
                         if (verifyRes.valid && verifyRes.serverId) {
                           // Sonra tüket ve sunucuya katıl
                           const consumeRes = await consumeInviteToken(token);
                           if (consumeRes.success) {
-                            setSelectedServerId(consumeRes.serverId || verifyRes.serverId);
+                            setSelectedServerId(
+                              consumeRes.serverId || verifyRes.serverId
+                            );
                             setShowCreateServer(false);
                             setJoinLink("");
-                            showToast("success", "Sunucuya başarıyla katıldınız!");
-                            
+                            showToast(
+                              "success",
+                              "Sunucuya başarıyla katıldınız!"
+                            );
+
                             // Sunucu listesini yenile
                             const token = localStorage.getItem("token");
                             if (token) {
                               getServers(token);
                             }
                           } else {
-                            showToast("error", "Davet kullanılamadı veya süresi dolmuş");
+                            showToast(
+                              "error",
+                              "Davet kullanılamadı veya süresi dolmuş"
+                            );
                           }
                         } else {
                           showToast("error", "Geçersiz davet linki veya token");
                         }
                       } catch (error) {
-                        console.error('Join server error:', error);
-                        showToast("error", "Davet linki işlenirken hata oluştu");
+                        console.error("Join server error:", error);
+                        showToast(
+                          "error",
+                          "Davet linki işlenirken hata oluştu"
+                        );
                       }
                     }}
                     className="px-3 py-1.5 rounded bg-blue-600 hover:bg-blue-700 text-white text-xs"
