@@ -15,16 +15,22 @@ const API =
   "https://ulgen-backend.onrender.com/api";
 
 export async function getServers(token: string): Promise<ServerItem[]> {
+  console.log("Fetching servers with API:", API);
+  console.log("Token:", token ? "present" : "missing");
   const res = await fetch(`${API}/servers`, {
     headers: { Authorization: `Bearer ${token}` },
   });
+  console.log("Servers response status:", res.status);
   const data = await res.json();
+  console.log("Servers response data:", data);
   if (!res.ok) throw new Error(data.message || "Sunucular alınamadı");
-  return data.servers.map((s: any) => ({
+  const mappedServers = data.servers.map((s: any) => ({
     id: s.id || s._id,
     name: s.name,
     icon: s.icon,
   }));
+  console.log("Mapped servers:", mappedServers);
+  return mappedServers;
 }
 
 export async function createServer(

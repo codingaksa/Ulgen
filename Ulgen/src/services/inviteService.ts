@@ -42,19 +42,19 @@ export async function createInviteLink(
     /^(localhost|127\.0\.0\.1)/.test(window.location.hostname);
   if (!serverId) return `${origin}/dashboard`;
   try {
-    console.log('Creating invite for serverId:', serverId, 'opts:', opts);
+    console.log("Creating invite for serverId:", serverId, "opts:", opts);
     const data = await apiRequest("/invites", {
       method: "POST",
       body: JSON.stringify({ serverId, ...opts }),
     });
-    console.log('Backend response:', data);
+    console.log("Backend response:", data);
     const token: string = data?.token;
     if (!token) throw new Error("no token");
     const link = `${origin}/dashboard?inviteToken=${encodeURIComponent(token)}`;
-    console.log('Generated invite link:', link);
+    console.log("Generated invite link:", link);
     return link;
   } catch (error) {
-    console.error('Failed to create invite via backend:', error);
+    console.error("Failed to create invite via backend:", error);
     // Fallback: localStorage tabanlı token üret
     if (!isLocalhost) return `${origin}/dashboard`;
     try {
@@ -84,17 +84,17 @@ export async function verifyInviteToken(
 ): Promise<{ valid: boolean; serverId?: string }> {
   if (!inviteToken) return { valid: false };
   try {
-    console.log('Verifying token:', inviteToken);
+    console.log("Verifying token:", inviteToken);
     // Sadece doğrulama yap, tüketme
     const data = await apiRequest(
       `/invites/${encodeURIComponent(inviteToken)}`
     );
-    console.log('Verify response:', data);
+    console.log("Verify response:", data);
     if (data?.valid && data?.serverId)
       return { valid: true, serverId: data.serverId };
     return { valid: false };
   } catch (error) {
-    console.error('Verify token error:', error);
+    console.error("Verify token error:", error);
     const isLocalhost =
       typeof window !== "undefined" &&
       /^(localhost|127\.0\.0\.1)/.test(window.location.hostname);
@@ -126,12 +126,12 @@ export async function consumeInviteToken(
 ): Promise<{ success: boolean; serverId?: string; channelId?: string }> {
   if (!inviteToken) return { success: false };
   try {
-    console.log('Consuming token:', inviteToken);
+    console.log("Consuming token:", inviteToken);
     const data = await apiRequest(
       `/invites/${encodeURIComponent(inviteToken)}/consume`,
       { method: "POST" }
     );
-    console.log('Consume response:', data);
+    console.log("Consume response:", data);
     return {
       success: data?.success || false,
       serverId: data?.serverId,

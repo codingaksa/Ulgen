@@ -236,9 +236,14 @@ const Dashboard: React.FC = () => {
         }
       } catch {}
       const token = localStorage.getItem("token");
+      console.log(
+        "Dashboard: Token from localStorage:",
+        token ? "present" : "missing"
+      );
       if (!token) return;
       getServers(token)
         .then((list) => {
+          console.log("Dashboard: Received servers list:", list);
           const apiServers = list.map((s) => ({
             id: (s as any).id || (s as any)._id || s.id,
             name: s.name,
