@@ -82,12 +82,10 @@ const createServer = async (req, res) => {
     });
   } catch (e) {
     console.error("Create server error:", e);
-    return res
-      .status(500)
-      .json({
-        success: false,
-        message: e.message || "Failed to create server",
-      });
+    return res.status(500).json({
+      success: false,
+      message: e.message || "Failed to create server",
+    });
   }
 };
 
@@ -250,12 +248,10 @@ const createChannel = async (req, res) => {
     const creatorRole = server.getUserRole?.(requesterId);
     const canCreate = isOwner(server, requesterId) || creatorRole === "admin";
     if (!canCreate) {
-      return res
-        .status(403)
-        .json({
-          success: false,
-          message: "Only owner or admin can create channels",
-        });
+      return res.status(403).json({
+        success: false,
+        message: "Only owner or admin can create channels",
+      });
     }
 
     const { name, description, type } = req.body || {};
@@ -302,12 +298,10 @@ const createChannel = async (req, res) => {
     });
   } catch (e) {
     console.error("Create channel error:", e);
-    return res
-      .status(500)
-      .json({
-        success: false,
-        message: e.message || "Failed to create channel",
-      });
+    return res.status(500).json({
+      success: false,
+      message: e.message || "Failed to create channel",
+    });
   }
 };
 
@@ -331,9 +325,10 @@ const updateChannel = async (req, res) => {
     const updaterRole = server.getUserRole?.(requesterId);
     const canUpdate = isOwner(server, requesterId) || updaterRole === "admin";
     if (!canUpdate) {
-      return res
-        .status(403)
-        .json({ success: false, message: "Only owner or admin can update channel" });
+      return res.status(403).json({
+        success: false,
+        message: "Only owner or admin can update channel",
+      });
     }
 
     const channel = await Channel.findOne({
@@ -388,9 +383,10 @@ const deleteChannel = async (req, res) => {
     const deleterRole = server.getUserRole?.(requesterId);
     const canDelete = isOwner(server, requesterId) || deleterRole === "admin";
     if (!canDelete) {
-      return res
-        .status(403)
-        .json({ success: false, message: "Only owner or admin can delete channel" });
+      return res.status(403).json({
+        success: false,
+        message: "Only owner or admin can delete channel",
+      });
     }
 
     const ch = await Channel.findOneAndDelete({
@@ -408,6 +404,47 @@ const deleteChannel = async (req, res) => {
     return res
       .status(500)
       .json({ success: false, message: "Failed to delete channel" });
+  }
+};
+
+// @desc    Set member role (owner only)
+// @route   PUT /api/servers/:serverId/members/:userId/role
+// @access  Private (owner)
+const setMemberRole = async (req, res) => {
+  try {
+    const { serverId, userId } = req.params;
+    const { role } = req.body || {};
+    if (!isValidId(serverId) || !isValidId(userId)) {
+      return res.status(400).json({ success: false, message: "Invalid id" });
+    }
+    if (!["admin", "member"].includes(String(role))) {
+      return res.status(400).json({ success: false, message: "Invalid role" });
+    }
+    const server = await Server.findById(serverId);
+    if (!server)
+      return res
+        .status(404)
+        .json({ success: false, message: "Server not found" });
+    const requesterId = getRequesterId(req);
+    if (!isOwner(server, requesterId)) {
+      return res
+        .status(403)
+        .json({ success: false, message: "Only owner can change roles" });
+    }
+    try {
+      server.setMemberRole(userId, role);
+      await server.save();
+    } catch (e) {
+      return res
+        .status(400)
+        .json({ success: false, message: e.message || "Failed to set role" });
+    }
+    return res.json({ success: true });
+  } catch (e) {
+    console.error("Set member role error:", e);
+    return res
+      .status(500)
+      .json({ success: false, message: "Failed to set role" });
   }
 };
 
@@ -467,12 +504,10 @@ const syncChannelMembers = async (req, res) => {
     });
   } catch (e) {
     console.error("Sync channel members error:", e);
-    return res
-      .status(500)
-      .json({
-        success: false,
-        message: e.message || "Failed to sync channel members",
-      });
+    return res.status(500).json({
+      success: false,
+      message: e.message || "Failed to sync channel members",
+    });
   }
 };
 
@@ -486,4 +521,5 @@ module.exports = {
   updateServer,
   updateChannel,
   deleteChannel,
+  setMemberRole,
 };
