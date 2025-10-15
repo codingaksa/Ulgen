@@ -21,7 +21,7 @@ export async function getServers(token: string): Promise<ServerItem[]> {
   const data = await res.json();
   if (!res.ok) throw new Error(data.message || "Sunucular alınamadı");
   return data.servers.map((s: any) => ({
-    id: s._id,
+    id: s.id || s._id,
     name: s.name,
     icon: s.icon,
   }));
