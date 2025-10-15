@@ -62,7 +62,9 @@ const Dashboard: React.FC = () => {
     return () => document.removeEventListener("click", handleClick);
   }, []);
   const [messages, setMessages] = useState<Message[]>([]);
-  const [servers, setServers] = useState<{ id: string; name: string }[]>([]);
+  const [servers, setServers] = useState<
+    { id: string; name: string; owner?: string }[]
+  >([]);
   const [selectedServerId, setSelectedServerId] = useState<string | null>(null);
   const [channelsList, setChannelsList] = useState<
     { id: string; name: string; description?: string }[]
@@ -247,6 +249,7 @@ const Dashboard: React.FC = () => {
           const apiServers = list.map((s) => ({
             id: (s as any).id || (s as any)._id || s.id,
             name: s.name,
+            owner: (s as any).owner,
           }));
           let merged = [...apiServers];
           try {
@@ -416,6 +419,15 @@ const Dashboard: React.FC = () => {
               }}
               onCreateText={() => {
                 if (!selectedServerId) return;
+                const me = currentUser?.id;
+                const sel = servers.find((s) => s.id === selectedServerId);
+                if (sel && me && sel.owner && sel.owner !== me) {
+                  showToast(
+                    "error",
+                    "Bu sunucuda kanal oluşturma yetkiniz yok (sahip değilsiniz)."
+                  );
+                  return;
+                }
                 setNewChannelName("");
                 setShowCreateChannel(true);
               }}
@@ -435,6 +447,16 @@ const Dashboard: React.FC = () => {
                 })
               }
               onCreateVoice={() => {
+                const me = currentUser?.id;
+                const sel = servers.find((s) => s.id === selectedServerId);
+                if (!selectedServerId || !sel) return;
+                if (sel && me && sel.owner && sel.owner !== me) {
+                  showToast(
+                    "error",
+                    "Only owner can create channels"
+                  );
+                  return;
+                }
                 setVoiceServerId(selectedServerId || null);
                 setNewVoiceChannelName("");
                 setShowCreateVoiceChannel(true);

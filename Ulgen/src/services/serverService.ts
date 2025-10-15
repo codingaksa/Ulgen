@@ -2,6 +2,7 @@ export interface ServerItem {
   id: string;
   name: string;
   icon?: string | null;
+  owner?: string;
 }
 export interface ChannelItem {
   id: string;
@@ -28,6 +29,7 @@ export async function getServers(token: string): Promise<ServerItem[]> {
     id: s.id || s._id,
     name: s.name,
     icon: s.icon,
+    owner: s.owner,
   }));
   console.log("Mapped servers:", mappedServers);
   return mappedServers;
