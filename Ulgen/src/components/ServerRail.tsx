@@ -156,6 +156,7 @@ const ServerRail: React.FC<ServerRailProps> = ({
 
       {/* Sunucular */}
       <div className="flex flex-col items-center space-y-3 w-full">
+        {console.log('ServerRail: servers prop:', servers, 'length:', servers.length)}
         {loading ? (
           <>
             <SkeletonDot />
