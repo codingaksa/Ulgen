@@ -745,26 +745,29 @@ const Dashboard: React.FC = () => {
                             selectedServerId,
                             confirmChannel.channelId
                           );
-                        } catch {}
-
-                        // UI'dan hem metin hem ses kanalı listelerinden temizle
-                        setChannelsList((prev) =>
-                          prev.filter((c) => c.id !== confirmChannel.channelId)
-                        );
-                        setVoiceChannels((prev) =>
-                          prev.filter((v) => v.id !== confirmChannel.channelId)
-                        );
-                        setUnreadById((prev) => {
-                          const cp = { ...prev } as Record<string, number>;
-                          delete cp[confirmChannel.channelId!];
-                          return cp;
-                        });
-                        if (activeChannelId === confirmChannel.channelId)
-                          setActiveChannelId(null);
-                        if (activeVoiceId === confirmChannel.channelId)
-                          setActiveVoiceId(null);
-                        setConfirmChannel({ open: false });
-                        showToast("success", "Kanal silindi");
+                          
+                          // UI'dan hem metin hem ses kanalı listelerinden temizle
+                          setChannelsList((prev) =>
+                            prev.filter((c) => c.id !== confirmChannel.channelId)
+                          );
+                          setVoiceChannels((prev) =>
+                            prev.filter((v) => v.id !== confirmChannel.channelId)
+                          );
+                          setUnreadById((prev) => {
+                            const cp = { ...prev } as Record<string, number>;
+                            delete cp[confirmChannel.channelId!];
+                            return cp;
+                          });
+                          if (activeChannelId === confirmChannel.channelId)
+                            setActiveChannelId(null);
+                          if (activeVoiceId === confirmChannel.channelId)
+                            setActiveVoiceId(null);
+                          setConfirmChannel({ open: false });
+                          showToast("success", "Kanal silindi");
+                        } catch (error) {
+                          console.error("Channel deletion failed:", error);
+                          showToast("error", "Kanal silinemedi: " + (error as any).message);
+                        }
                       }}
                       className="px-4 py-2 rounded-lg bg-red-600 hover:bg-red-700 text-white"
                     >
@@ -1900,8 +1903,9 @@ const Dashboard: React.FC = () => {
                       setSelectedServerId(null);
                     setConfirmDelete({ open: false });
                     showToast("success", "Sunucu silindi");
-                  } catch {
-                    showToast("error", "Sunucu silinemedi");
+                  } catch (error) {
+                    console.error("Server deletion failed:", error);
+                    showToast("error", "Sunucu silinemedi: " + (error as any).message);
                   }
                 }}
                 className="px-4 py-2 rounded-lg bg-red-600 hover:bg-red-700 text-white"
