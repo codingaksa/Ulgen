@@ -625,27 +625,17 @@ const Dashboard: React.FC = () => {
                               ...prev,
                               { id: newChannel.id, name: newChannel.name },
                             ]);
+                            showToast("success", "Ses kanalı oluşturuldu");
                           } catch (error) {
                             console.error(
                               "Voice channel creation failed:",
                               error
                             );
-                            // Fallback to localStorage
-                            const id = `${Date.now().toString(36)}`;
-                            setVoiceChannels((prev) => [...prev, { id, name }]);
-                            try {
-                              const raw = localStorage.getItem("voiceChannels");
-                              const map = raw ? JSON.parse(raw) : {};
-                              const sid = selectedServerId || "default";
-                              const arr = Array.isArray(map[sid])
-                                ? map[sid]
-                                : [];
-                              map[sid] = [...arr, { id, name }];
-                              localStorage.setItem(
-                                "voiceChannels",
-                                JSON.stringify(map)
-                              );
-                            } catch {}
+                            showToast(
+                              "error",
+                              "Ses kanalı oluşturulamadı: " +
+                                (error as any).message
+                            );
                           }
                         }
                         setShowCreateVoiceChannel(false);
@@ -1502,7 +1492,14 @@ const Dashboard: React.FC = () => {
                       },
                     ]);
                     setShowCreateServer(false);
-                  } catch {}
+                    showToast("success", "Sunucu oluşturuldu");
+                  } catch (error) {
+                    console.error("Server creation failed:", error);
+                    showToast(
+                      "error",
+                      "Sunucu oluşturulamadı: " + (error as any).message
+                    );
+                  }
                 }}
                 className="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white"
               >
