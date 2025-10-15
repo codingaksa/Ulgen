@@ -595,10 +595,14 @@ const Dashboard: React.FC = () => {
                   </h3>
                   {(!selectedServerId || voiceServerId === null) && (
                     <div className="mb-3">
-                      <label className="block text-gray-300 text-sm mb-2">Sunucu</label>
+                      <label className="block text-gray-300 text-sm mb-2">
+                        Sunucu
+                      </label>
                       <select
                         value={voiceServerId || ""}
-                        onChange={(e) => setVoiceServerId(e.target.value || null)}
+                        onChange={(e) =>
+                          setVoiceServerId(e.target.value || null)
+                        }
                         className="w-full px-3 py-2 rounded bg-gray-900 border border-gray-700 text-gray-100"
                       >
                         <option value="">Sunucu seçin</option>
@@ -627,7 +631,8 @@ const Dashboard: React.FC = () => {
                       onClick={async () => {
                         if (!newVoiceChannelName.trim()) return;
                         const name = newVoiceChannelName.trim();
-                        const targetServerId = selectedServerId || voiceServerId;
+                        const targetServerId =
+                          selectedServerId || voiceServerId;
                         if (!targetServerId) {
                           showToast("error", "Önce bir sunucu seçin");
                           return;
