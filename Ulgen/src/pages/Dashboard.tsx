@@ -745,13 +745,17 @@ const Dashboard: React.FC = () => {
                             selectedServerId,
                             confirmChannel.channelId
                           );
-                          
+
                           // UI'dan hem metin hem ses kanalı listelerinden temizle
                           setChannelsList((prev) =>
-                            prev.filter((c) => c.id !== confirmChannel.channelId)
+                            prev.filter(
+                              (c) => c.id !== confirmChannel.channelId
+                            )
                           );
                           setVoiceChannels((prev) =>
-                            prev.filter((v) => v.id !== confirmChannel.channelId)
+                            prev.filter(
+                              (v) => v.id !== confirmChannel.channelId
+                            )
                           );
                           setUnreadById((prev) => {
                             const cp = { ...prev } as Record<string, number>;
@@ -766,7 +770,10 @@ const Dashboard: React.FC = () => {
                           showToast("success", "Kanal silindi");
                         } catch (error) {
                           console.error("Channel deletion failed:", error);
-                          showToast("error", "Kanal silinemedi: " + (error as any).message);
+                          showToast(
+                            "error",
+                            "Kanal silinemedi: " + (error as any).message
+                          );
                         }
                       }}
                       className="px-4 py-2 rounded-lg bg-red-600 hover:bg-red-700 text-white"
@@ -1905,7 +1912,10 @@ const Dashboard: React.FC = () => {
                     showToast("success", "Sunucu silindi");
                   } catch (error) {
                     console.error("Server deletion failed:", error);
-                    showToast("error", "Sunucu silinemedi: " + (error as any).message);
+                    showToast(
+                      "error",
+                      "Sunucu silinemedi: " + (error as any).message
+                    );
                   }
                 }}
                 className="px-4 py-2 rounded-lg bg-red-600 hover:bg-red-700 text-white"

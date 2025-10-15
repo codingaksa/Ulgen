@@ -24,7 +24,7 @@ const inviteSchema = new Schema(
     createdBy: { type: Schema.Types.ObjectId, ref: 'User', default: null },
 
     // Geçerlilik
-    expiresAt: { type: Date, default: null, index: true }, // null => süresiz
+    expiresAt: { type: Date, default: null }, // null => süresiz
 
     /**
      * 0 => sınırsız kullanım
