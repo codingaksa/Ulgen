@@ -258,7 +258,7 @@ const Dashboard: React.FC = () => {
               if (!merged.some((x) => x.id === j.id)) merged.push(j);
             }
           } catch {}
-          console.log('Setting servers state to:', merged);
+          console.log("Setting servers state to:", merged);
           setServers(merged);
         })
         .catch(() => {});

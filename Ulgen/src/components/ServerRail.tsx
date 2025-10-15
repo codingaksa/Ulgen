@@ -1,5 +1,5 @@
 // components/ServerRail.tsx
-import React from "react";
+import React, { useEffect } from "react";
 
 type Server = {
   id: string;
@@ -60,6 +60,11 @@ const ServerRail: React.FC<ServerRailProps> = ({
   onDelete,
   loading = false,
 }) => {
+  // Debug: Track prop changes
+  useEffect(() => {
+    console.log('ServerRail useEffect: servers prop changed to:', servers);
+  }, [servers]);
+
   const handleKeyActivate = (
     e: React.KeyboardEvent<HTMLButtonElement>,
     id: string
