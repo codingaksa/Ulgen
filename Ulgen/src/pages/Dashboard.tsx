@@ -16,6 +16,7 @@ import { useToast } from "../components/Toast.tsx";
 import {
   createInviteLink,
   verifyInviteToken,
+  consumeInviteToken,
   listInvites,
   revokeInvite,
 } from "../services/inviteService.ts";
@@ -196,9 +197,29 @@ const Dashboard: React.FC = () => {
         const channelParam = params.get("channel");
         if (inviteToken) {
           try {
-            const res = await verifyInviteToken(inviteToken);
-            if (res.valid && res.serverId) setSelectedServerId(res.serverId);
-          } catch {}
+            // Önce doğrula
+            const verifyRes = await verifyInviteToken(inviteToken);
+            if (verifyRes.valid && verifyRes.serverId) {
+              // Sonra tüket ve sunucuya katıl
+              const consumeRes = await consumeInviteToken(inviteToken);
+              if (consumeRes.success) {
+                setSelectedServerId(consumeRes.serverId || verifyRes.serverId);
+                showToast("success", "Sunucuya başarıyla katıldınız!");
+                // Sunucu listesini yenile
+                const token = localStorage.getItem("token");
+                if (token) {
+                  getServers(token);
+                }
+              } else {
+                showToast("error", "Davet kullanılamadı veya süresi dolmuş");
+              }
+            } else {
+              showToast("error", "Geçersiz davet linki");
+            }
+          } catch (error) {
+            console.error("Invite processing error:", error);
+            showToast("error", "Davet işlenirken hata oluştu");
+          }
           const url = new URL(window.location.href);
           url.searchParams.delete("inviteToken");
           window.history.replaceState({}, "", url.toString());
@@ -1381,44 +1402,36 @@ const Dashboard: React.FC = () => {
                     onClick={async () => {
                       try {
                         const token = extractInviteToken(joinLink);
-                        if (!token) return;
-                        const res = await verifyInviteToken(token);
-                        if (res.valid && res.serverId) {
-                          setSelectedServerId(res.serverId);
-                          setShowCreateServer(false);
-                          setJoinLink("");
-                          showToast("success", "Sunucuya katılındı");
-                          // client-side membership fallback
-                          try {
-                            const raw = localStorage.getItem(
-                              "clientJoinedServers"
-                            );
-                            const list: Array<{ id: string; name: string }> =
-                              raw ? JSON.parse(raw) : [];
-                            const exists = list.some(
-                              (x) => x.id === res.serverId
-                            );
-                            if (!exists) {
-                              list.push({ id: res.serverId, name: "Sunucu" });
-                              localStorage.setItem(
-                                "clientJoinedServers",
-                                JSON.stringify(list)
-                              );
+                        if (!token) {
+                          showToast("error", "Geçerli bir davet linki girin");
+                          return;
+                        }
+                        
+                        // Önce doğrula
+                        const verifyRes = await verifyInviteToken(token);
+                        if (verifyRes.valid && verifyRes.serverId) {
+                          // Sonra tüket ve sunucuya katıl
+                          const consumeRes = await consumeInviteToken(token);
+                          if (consumeRes.success) {
+                            setSelectedServerId(consumeRes.serverId || verifyRes.serverId);
+                            setShowCreateServer(false);
+                            setJoinLink("");
+                            showToast("success", "Sunucuya başarıyla katıldınız!");
+                            
+                            // Sunucu listesini yenile
+                            const token = localStorage.getItem("token");
+                            if (token) {
+                              getServers(token);
                             }
-                            // Ekranda hemen görünsün
-                            setServers(
-                              (prev: { id: string; name: string }[]) => {
-                                const sid = String(res.serverId);
-                                if (prev.some((s) => s.id === sid)) return prev;
-                                return [...prev, { id: sid, name: "Sunucu" }];
-                              }
-                            );
-                          } catch {}
+                          } else {
+                            showToast("error", "Davet kullanılamadı veya süresi dolmuş");
+                          }
                         } else {
                           showToast("error", "Geçersiz davet linki veya token");
                         }
-                      } catch {
-                        showToast("error", "Davet linki okunamadı");
+                      } catch (error) {
+                        console.error('Join server error:', error);
+                        showToast("error", "Davet linki işlenirken hata oluştu");
                       }
                     }}
                     className="px-3 py-1.5 rounded bg-blue-600 hover:bg-blue-700 text-white text-xs"

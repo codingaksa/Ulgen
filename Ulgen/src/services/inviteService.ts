@@ -79,16 +79,7 @@ export async function verifyInviteToken(
 ): Promise<{ valid: boolean; serverId?: string }> {
   if (!inviteToken) return { valid: false };
   try {
-    // Önce atomik tüketmeyi dene
-    try {
-      const consumed = await apiRequest(
-        `/invites/${encodeURIComponent(inviteToken)}/consume`,
-        { method: "POST" }
-      );
-      if (consumed?.valid && consumed?.serverId) {
-        return { valid: true, serverId: consumed.serverId };
-      }
-    } catch {}
+    // Sadece doğrulama yap, tüketme
     const data = await apiRequest(
       `/invites/${encodeURIComponent(inviteToken)}`
     );
@@ -113,22 +104,32 @@ export async function verifyInviteToken(
           : now - (item.createdAt || 0) < 7 * 24 * 60 * 60 * 1000) &&
         (item.remainingUses === undefined ? true : item.remainingUses > 0)
       ) {
-        // kullanım tüket
-        if (typeof item.remainingUses === "number") {
-          item.remainingUses -= 1;
-          if (item.remainingUses <= 0) {
-            delete map[inviteToken];
-          } else {
-            map[inviteToken] = item;
-          }
-          localStorage.setItem("inviteTokens", JSON.stringify(map));
-        }
         return { valid: true, serverId: item.serverId };
       }
       return { valid: false };
     } catch {
       return { valid: false };
     }
+  }
+}
+
+export async function consumeInviteToken(
+  inviteToken: string
+): Promise<{ success: boolean; serverId?: string; channelId?: string }> {
+  if (!inviteToken) return { success: false };
+  try {
+    const data = await apiRequest(
+      `/invites/${encodeURIComponent(inviteToken)}/consume`,
+      { method: "POST" }
+    );
+    return {
+      success: data?.success || false,
+      serverId: data?.serverId,
+      channelId: data?.channelId,
+    };
+  } catch (error) {
+    console.error("Consume invite error:", error);
+    return { success: false };
   }
 }
 
