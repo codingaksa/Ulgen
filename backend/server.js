@@ -129,6 +129,7 @@ app.use("/api/avatar", require("./routes/avatar"));
 app.use("/api/messages", require("./routes/messages"));
 app.use("/api/friends", require("./routes/friends"));
 app.use("/api/user-status", require("./routes/userStatus"));
+app.use("/api/roles", require("./routes/roles"));
 
 // Health check
 app.get("/api/health", (_req, res) => {

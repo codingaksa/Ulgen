@@ -9,6 +9,7 @@ const memberSub = new Schema(
   {
     user: { type: Schema.Types.ObjectId, ref: 'User', required: true },
     role: { type: String, enum: ['owner', 'admin', 'member'], default: 'member' },
+    roles: [{ type: Schema.Types.ObjectId, ref: 'Role', default: [] }],
     joinedAt: { type: Date, default: Date.now }
   },
   { _id: false }
