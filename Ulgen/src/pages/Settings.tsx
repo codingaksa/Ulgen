@@ -57,6 +57,34 @@ const Settings: React.FC = () => {
     text: string;
   } | null>(null);
 
+  // Masaüstü bildirim izni durumu
+  const [notificationPermission, setNotificationPermission] = useState<
+    NotificationPermission
+  >(() => (typeof Notification !== "undefined" ? Notification.permission : "default"));
+
+  const requestNotificationPermission = async () => {
+    try {
+      if (typeof window === "undefined" || !("Notification" in window)) {
+        showMessage("error", "Tarayıcınız bildirimleri desteklemiyor");
+        return;
+      }
+      const permission = await Notification.requestPermission();
+      setNotificationPermission(permission);
+      if (permission === "granted") {
+        showMessage("success", "Masaüstü bildirim izni verildi");
+        new Notification("Bildirimler aktif", {
+          body: "Artık yeni bildirimleri alacaksınız",
+        });
+      } else if (permission === "denied") {
+        showMessage("error", "Bildirim izni reddedildi");
+      } else {
+        showMessage("info", "Bildirim izni beklemede");
+      }
+    } catch (e) {
+      showMessage("error", "Bildirim izni istenirken hata oluştu");
+    }
+  };
+
   // Socket.IO bağlantısı
   const socketRef = useRef<Socket | null>(null);
 
@@ -1410,7 +1438,7 @@ const Settings: React.FC = () => {
           </div>
         )}
 
-        {/* Notifications Settings */}
+        {/* Notifications Settings */
         {activeTab === "notifications" && (
           <div>
             <div className="mb-8">
@@ -1420,6 +1448,40 @@ const Settings: React.FC = () => {
             </div>
 
             <div className="space-y-8">
+              {/* Masaüstü Bildirim İzni */}
+              <div className="bg-[#121212] rounded-lg p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="text-xl font-semibold text-white mb-1">Masaüstü Bildirim İzni</h3>
+                    <p className="text-gray-400 text-sm">
+                      İzin durumu: {notificationPermission === "granted"
+                        ? "İzin verildi"
+                        : notificationPermission === "denied"
+                        ? "Reddedildi"
+                        : "Beklemede"}
+                    </p>
+                  </div>
+                  <button
+                    onClick={requestNotificationPermission}
+                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                      notificationPermission === "granted"
+                        ? "bg-green-600 hover:bg-green-700 text-white"
+                        : "bg-scroll-accent hover:bg-scroll-accent-strong text-white"
+                    }`}
+                    disabled={notificationPermission === "granted"}
+                    title={
+                      notificationPermission === "granted"
+                        ? "Zaten izin verildi"
+                        : "İzin iste"
+                    }
+                  >
+                    {notificationPermission === "granted"
+                      ? "Etkin"
+                      : "İzin İste"}
+                  </button>
+                </div>
+              </div>
+
               {/* Genel Bildirimler */}
               <div className="bg-[#121212] rounded-lg p-6">
                 <h3 className="text-xl font-semibold text-white mb-4">Genel Bildirimler</h3>
