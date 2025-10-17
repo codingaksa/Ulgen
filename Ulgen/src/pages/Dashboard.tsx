@@ -374,6 +374,9 @@ const Dashboard: React.FC = () => {
         );
       });
 
+      // Backend'in bağlantı anında çevrimiçi kullanıcıları göndermesi için
+      socketRef.current.emit("get-online-users");
+
       socketRef.current.on("audio-video-settings-updated", (data) => {
         console.log("Ses/video ayarları güncellendi:", data);
         showToast("info", `${data.username} ses/video ayarlarını güncelledi`);
@@ -399,7 +402,8 @@ const Dashboard: React.FC = () => {
             const realUsers = data.members.map((member: any) => ({
               id: member.userId,
               username: member.username,
-              status: member.isOnline ? "online" : "offline",
+              // Backend artık status alanını döndürüyor; yoksa isOnline'a göre türet
+              status: member.status || (member.isOnline ? "online" : "offline"),
               role: member.role,
               avatar: member.avatar,
               email: member.email,

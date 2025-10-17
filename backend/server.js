@@ -337,7 +337,7 @@ io.on("connection", (socket) => {
       const Server = require("./models/Server");
       const server = await Server.findById(serverId).populate(
         "members.user",
-        "username email avatar isOnline lastSeen"
+        "username email avatar isOnline lastSeen status"
       );
 
       if (!server) return ack({ members: [] });
@@ -351,6 +351,7 @@ io.on("connection", (socket) => {
           avatar: member.user.avatar,
           role: member.role,
           isOnline: member.user.isOnline,
+          status: member.user.status,
           lastSeen: member.user.lastSeen,
           joinedAt: member.joinedAt,
         }));
