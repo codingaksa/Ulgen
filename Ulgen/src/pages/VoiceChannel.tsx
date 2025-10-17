@@ -284,8 +284,7 @@ const VoiceChannel: React.FC<VoiceChannelProps> = ({ channelId, noUI }) => {
     if (socketRef.current) return;
 
     const SOCKET_BASE =
-      (import.meta as any).env?.VITE_SOCKET_BASE ||
-      "https://ulgen-backend.onrender.com";
+      (import.meta as any).env?.VITE_SOCKET_BASE || "http://localhost:5000";
     const socket = io(SOCKET_BASE, {
       transports: ["websocket", "polling"],
       reconnection: true,
@@ -820,62 +819,67 @@ const VoiceChannel: React.FC<VoiceChannelProps> = ({ channelId, noUI }) => {
   }, [id, isMuted, isDeafened]);
 
   return (
-    <div className="min-h-screen bg-gray-900 flex">
-      {/* Kullanıcı Listesi */}
-      <div className="w-80 bg-gray-800 border-r border-gray-700">
-        <div className="p-4 border-b border-gray-700">
+    <div className="min-h-screen bg-gradient-to-br from-[#121212] via-[#1a1a1a] to-[#121212] flex">
+      {/* Modern Kullanıcı Listesi */}
+      <div className="w-80 bg-gradient-to-b from-[#1F1B24] to-[#2a1f3d] border-r border-violet-500/20 backdrop-blur-sm">
+        <div className="p-6 border-b border-violet-500/20">
           <div className="flex items-center justify-between">
-            <div>
-              <h2 className="text-xl font-semibold text-white">
-                Ses Kanalı #{id}
-              </h2>
-              <p className="text-gray-400 text-sm mt-1">
-                {users.length} çevrimiçi üye
-              </p>
+            <div className="flex items-center space-x-4">
+              <div className="w-12 h-12 bg-gradient-to-br from-violet-500 to-purple-600 rounded-2xl flex items-center justify-center shadow-lg shadow-violet-500/30">
+                <FontAwesomeIcon
+                  icon={faMicrophone}
+                  className="text-white text-xl"
+                />
+              </div>
+              <div>
+                <h2 className="text-2xl font-bold bg-gradient-to-r from-white to-violet-200 bg-clip-text text-transparent">
+                  Ses Kanalı #{id}
+                </h2>
+                <p className="text-violet-300 text-sm mt-1">
+                  {users.length} çevrimiçi üye
+                </p>
+              </div>
             </div>
-            <div className="flex items-center gap-2">
-              {/* Invite */}
+            <div className="flex items-center gap-3">
+              {/* Modern Control Buttons */}
               <button
                 onClick={() => {
                   setShowInvite(true);
                   setCopied(false);
                 }}
                 title="Davet bağlantısı"
-                className="px-2 py-2 rounded bg-green-600 hover:bg-green-500 text-white"
+                className="p-3 rounded-xl bg-gradient-to-r from-violet-600/20 to-purple-600/20 hover:from-violet-600/30 hover:to-purple-600/30 text-violet-300 hover:text-white transition-all duration-300 border border-violet-500/30 hover:border-violet-400/50 backdrop-blur-sm"
               >
-                <FontAwesomeIcon icon={faLink} className="w-4 h-4" />
+                <FontAwesomeIcon icon={faLink} className="w-5 h-5" />
               </button>
-              {/* Mic */}
               <button
                 onClick={toggleMute}
                 title={isMuted ? "Mikrofon kapalı" : "Mikrofon açık"}
-                className={`p-2 rounded ${
+                className={`p-3 rounded-xl transition-all duration-300 ${
                   isMuted
-                    ? "bg-red-600 text-white"
-                    : "bg-green-600 text-white hover:bg-green-500"
+                    ? "bg-gradient-to-r from-red-500 to-red-600 text-white shadow-lg shadow-red-500/30"
+                    : "bg-gradient-to-r from-violet-600/20 to-purple-600/20 hover:from-violet-600/30 hover:to-purple-600/30 text-violet-300 hover:text-white border border-violet-500/30 hover:border-violet-400/50 backdrop-blur-sm"
                 }`}
               >
                 <FontAwesomeIcon
                   icon={isMuted ? faMicrophoneSlash : faMicrophone}
-                  className="w-4 h-4"
+                  className="w-5 h-5"
                 />
               </button>
-              {/* Headphones */}
               <button
                 onClick={toggleDeafen}
                 title={isDeafened ? "Kulaklık kapalı" : "Kulaklık açık"}
-                className={`p-2 rounded ${
+                className={`p-3 rounded-xl transition-all duration-300 ${
                   isDeafened
-                    ? "bg-red-600 text-white"
-                    : "bg-green-600 text-white hover:bg-green-500"
+                    ? "bg-gradient-to-r from-red-500 to-red-600 text-white shadow-lg shadow-red-500/30"
+                    : "bg-gradient-to-r from-violet-600/20 to-purple-600/20 hover:from-violet-600/30 hover:to-purple-600/30 text-violet-300 hover:text-white border border-violet-500/30 hover:border-violet-400/50 backdrop-blur-sm"
                 }`}
               >
                 <FontAwesomeIcon
                   icon={isDeafened ? faEarDeaf : faHeadphonesSimple}
-                  className="w-4 h-4"
+                  className="w-5 h-5"
                 />
               </button>
-              {/* Screenshare */}
               <button
                 onClick={toggleShare}
                 title={
@@ -883,46 +887,55 @@ const VoiceChannel: React.FC<VoiceChannelProps> = ({ channelId, noUI }) => {
                     ? "Ekran paylaşımını durdur"
                     : "Ekran paylaşımı başlat"
                 }
-                className={`p-2 rounded ${
+                className={`p-3 rounded-xl transition-all duration-300 ${
                   isSharing
-                    ? "bg-red-600 text-white"
-                    : "bg-green-600 text-white hover:bg-green-500"
+                    ? "bg-gradient-to-r from-red-500 to-red-600 text-white shadow-lg shadow-red-500/30"
+                    : "bg-gradient-to-r from-violet-600/20 to-purple-600/20 hover:from-violet-600/30 hover:to-purple-600/30 text-violet-300 hover:text-white border border-violet-500/30 hover:border-violet-400/50 backdrop-blur-sm"
                 }`}
               >
-                <FontAwesomeIcon icon={faDisplay} className="w-4 h-4" />
+                <FontAwesomeIcon icon={faDisplay} className="w-5 h-5" />
               </button>
             </div>
           </div>
         </div>
-        <div className="p-4">
-          <div className="space-y-2">
+        <div className="p-6">
+          <div className="space-y-3">
             {users.map((user) => (
               <div
                 key={user.id}
-                className={`flex items-center p-3 rounded-lg ${
-                  user.isSpeaking ? "bg-green-900 bg-opacity-30" : "bg-gray-700"
+                className={`flex items-center p-4 rounded-2xl border backdrop-blur-sm transition-all duration-300 ${
+                  user.isSpeaking
+                    ? "bg-gradient-to-r from-emerald-500/20 to-green-500/20 border-emerald-400/50 shadow-lg shadow-emerald-500/20"
+                    : "bg-gradient-to-r from-[#1F1B24]/50 to-[#2a1f3d]/50 border-violet-500/20 hover:border-violet-400/30"
                 }`}
               >
                 <div className="relative">
                   <div
-                    className={`w-10 h-10 rounded-full flex items-center justify-center ${
+                    className={`w-12 h-12 rounded-2xl flex items-center justify-center shadow-lg transition-all duration-300 ${
                       user.id === currentUser?.id
-                        ? "bg-indigo-500"
-                        : "bg-gray-600"
+                        ? "bg-gradient-to-br from-violet-500 to-purple-600 shadow-violet-500/30"
+                        : "bg-gradient-to-br from-gray-700 to-gray-800"
                     }`}
                   >
-                    <span className="text-white font-medium">
+                    <span className="text-white font-bold text-lg">
                       {user.username.charAt(0).toUpperCase()}
                     </span>
                   </div>
                   {user.isSpeaking && (
-                    <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-green-500 rounded-full border-2 border-gray-800"></div>
+                    <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-emerald-500 rounded-full border-2 border-gray-800"></div>
                   )}
                 </div>
-                <div className="ml-3 flex-1">
-                  <div className="text-white font-medium">
+                <div className="ml-4 flex-1">
+                  <div className="text-white font-semibold text-lg">
                     {user.username}
-                    {user.id === currentUser?.id && " (Siz)"}
+                    {user.id === currentUser?.id && (
+                      <span className="ml-2 text-violet-300 text-sm font-normal">
+                        (Siz)
+                      </span>
+                    )}
+                  </div>
+                  <div className="text-violet-300 text-sm">
+                    {user.isSpeaking ? "Konuşuyor" : "Sessiz"}
                   </div>
                 </div>
                 <div className="flex items-center space-x-2">
@@ -935,8 +948,8 @@ const VoiceChannel: React.FC<VoiceChannelProps> = ({ channelId, noUI }) => {
                         toggleMute();
                       }}
                       title={user.isMuted ? "Mikrofon kapalı" : "Mikrofon açık"}
-                      className={`inline-flex items-center justify-center w-5 h-5 rounded-full bg-gray-700/60 hover:bg-gray-600/60 ${
-                        user.isMuted ? "text-red-500" : "text-green-400"
+                      className={`inline-flex items-center justify-center w-5 h-5 rounded-full bg-[#1F1B24]/60 hover:bg-[#1F1B24]/80 ${
+                        user.isMuted ? "text-red-500" : "text-emerald-400"
                       }`}
                       type="button"
                     >
@@ -947,8 +960,8 @@ const VoiceChannel: React.FC<VoiceChannelProps> = ({ channelId, noUI }) => {
                     </button>
                   ) : (
                     <span
-                      className={`inline-flex items-center justify-center w-5 h-5 rounded-full bg-gray-700/60 ${
-                        user.isMuted ? "text-red-500" : "text-green-400"
+                      className={`inline-flex items-center justify-center w-5 h-5 rounded-full bg-[#1F1B24]/60 ${
+                        user.isMuted ? "text-red-500" : "text-emerald-400"
                       }`}
                       title={user.isMuted ? "Mikrofon kapalı" : "Mikrofon açık"}
                     >
@@ -970,8 +983,8 @@ const VoiceChannel: React.FC<VoiceChannelProps> = ({ channelId, noUI }) => {
                       title={
                         user.isDeafened ? "Kulaklık kapalı" : "Kulaklık açık"
                       }
-                      className={`inline-flex items-center justify-center w-5 h-5 rounded-full bg-gray-700/60 hover:bg-gray-600/60 ${
-                        user.isDeafened ? "text-red-500" : "text-green-400"
+                      className={`inline-flex items-center justify-center w-5 h-5 rounded-full bg-[#1F1B24]/60 hover:bg-[#1F1B24]/80 ${
+                        user.isDeafened ? "text-red-500" : "text-emerald-400"
                       }`}
                       type="button"
                     >
@@ -982,8 +995,8 @@ const VoiceChannel: React.FC<VoiceChannelProps> = ({ channelId, noUI }) => {
                     </button>
                   ) : (
                     <span
-                      className={`inline-flex items-center justify-center w-5 h-5 rounded-full bg-gray-700/60 ${
-                        user.isDeafened ? "text-red-500" : "text-green-400"
+                      className={`inline-flex items-center justify-center w-5 h-5 rounded-full bg-[#1F1B24]/60 ${
+                        user.isDeafened ? "text-red-500" : "text-emerald-400"
                       }`}
                       title={
                         user.isDeafened ? "Kulaklık kapalı" : "Kulaklık açık"
@@ -1002,13 +1015,13 @@ const VoiceChannel: React.FC<VoiceChannelProps> = ({ channelId, noUI }) => {
         </div>
       </div>
 
-      {/* Ana İçerik */}
+      {/* Modern Ana İçerik */}
       <div className="flex-1 flex flex-col">
-        <div className="flex-1 relative bg-gray-900">
-          {/* Ekran Paylaşımı Önizleme */}
+        <div className="flex-1 relative bg-gradient-to-br from-[#121212] via-[#1a1a1a] to-[#121212]">
+          {/* Modern Ekran Paylaşımı Önizleme */}
           {isSharing && (
-            <div className="absolute inset-x-0 top-0 flex justify-center p-6 pointer-events-none">
-              <div className="rounded-xl overflow-hidden border border-gray-700 w-full max-w-4xl shadow-2xl">
+            <div className="absolute inset-x-0 top-0 flex justify-center p-8 pointer-events-none">
+              <div className="rounded-3xl overflow-hidden border border-violet-500/30 w-full max-w-5xl shadow-2xl shadow-violet-500/20 backdrop-blur-sm">
                 <video
                   ref={shareVideoRef}
                   className="w-full bg-black"
@@ -1019,37 +1032,37 @@ const VoiceChannel: React.FC<VoiceChannelProps> = ({ channelId, noUI }) => {
             </div>
           )}
 
-          {/* Katılımcı Grid'i */}
-          <div className={`h-full ${isSharing ? "pt-72" : "pt-10"} pb-28 px-6`}>
+          {/* Modern Katılımcı Grid'i */}
+          <div className={`h-full ${isSharing ? "pt-80" : "pt-12"} pb-32 px-8`}>
             <div className="max-w-7xl mx-auto">
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-8">
                 {users.map((user) => (
                   <div
                     key={user.id}
-                    className={`group relative bg-gray-800/50 hover:bg-gray-800/70 border border-gray-700 rounded-2xl p-5 transition-colors`}
+                    className={`group relative bg-gradient-to-br from-[#1F1B24]/60 to-[#2a1f3d]/60 hover:from-[#1F1B24]/80 hover:to-[#2a1f3d]/80 border border-violet-500/20 hover:border-violet-400/40 rounded-3xl p-6 transition-all duration-300 backdrop-blur-sm hover:shadow-lg hover:shadow-violet-500/10`}
                   >
                     <div className="flex flex-col items-center">
                       <div className="relative">
                         <div
-                          className={`w-16 h-16 rounded-full flex items-center justify-center ${
+                          className={`w-20 h-20 rounded-3xl flex items-center justify-center shadow-lg transition-all duration-300 ${
                             user.id === currentUser?.id
-                              ? "bg-indigo-500"
-                              : "bg-gray-600"
+                              ? "bg-gradient-to-br from-violet-500 to-purple-600 shadow-violet-500/30"
+                              : "bg-gradient-to-br from-gray-700 to-gray-800"
                           } ${
                             user.isSpeaking
-                              ? "ring-4 ring-green-500/60 shadow-lg shadow-green-700/20"
+                              ? "ring-4 ring-emerald-400/60 shadow-2xl shadow-emerald-500/30 scale-105"
                               : ""
                           }`}
                         >
-                          <span className="text-white font-semibold">
+                          <span className="text-white font-bold text-2xl">
                             {user.username.charAt(0).toUpperCase()}
                           </span>
                         </div>
-                        {/* Sadece kendiniz için seviye göstergesi */}
+                        {/* Modern seviye göstergesi */}
                         {user.id === socketRef.current?.id && (
-                          <div className="absolute -bottom-3 left-1/2 -translate-x-1/2 w-28 h-1.5 bg-gray-700 rounded-full overflow-hidden">
+                          <div className="absolute -bottom-4 left-1/2 -translate-x-1/2 w-32 h-2 bg-[#1F1B24]/80 rounded-full overflow-hidden border border-violet-500/20">
                             <div
-                              className="h-full bg-green-500"
+                              className="h-full bg-gradient-to-r from-emerald-400 to-green-500 rounded-full transition-all duration-150"
                               style={{
                                 width: `${Math.round(selfLevel * 100)}%`,
                               }}
@@ -1057,14 +1070,23 @@ const VoiceChannel: React.FC<VoiceChannelProps> = ({ channelId, noUI }) => {
                           </div>
                         )}
                       </div>
-                      <div className="mt-4 text-white font-medium text-center">
-                        {user.username}
-                        {user.id === currentUser?.id && " (Siz)"}
+                      <div className="mt-6 text-center">
+                        <div className="text-white font-bold text-lg">
+                          {user.username}
+                          {user.id === currentUser?.id && (
+                            <span className="ml-2 text-violet-300 text-sm font-normal">
+                              (Siz)
+                            </span>
+                          )}
+                        </div>
+                        <div className="text-violet-300 text-sm mt-1">
+                          {user.isSpeaking ? "Konuşuyor" : "Sessiz"}
+                        </div>
                       </div>
                       <div className="mt-2 flex items-center gap-2 text-sm">
                         <span
                           className={`${
-                            user.isMuted ? "text-red-500" : "text-green-400"
+                            user.isMuted ? "text-red-500" : "text-emerald-400"
                           }`}
                           title={
                             user.isMuted ? "Mikrofon kapalı" : "Mikrofon açık"
@@ -1078,7 +1100,9 @@ const VoiceChannel: React.FC<VoiceChannelProps> = ({ channelId, noUI }) => {
                         </span>
                         <span
                           className={`${
-                            user.isDeafened ? "text-red-500" : "text-green-400"
+                            user.isDeafened
+                              ? "text-red-500"
+                              : "text-emerald-400"
                           }`}
                           title={
                             user.isDeafened
@@ -1102,14 +1126,14 @@ const VoiceChannel: React.FC<VoiceChannelProps> = ({ channelId, noUI }) => {
 
           {/* Alt Cam Efektli Kontrol Barı */}
           <div className="pointer-events-none absolute bottom-6 left-1/2 -translate-x-1/2">
-            <div className="pointer-events-auto flex items-center gap-3 px-4 py-2 rounded-full border border-white/10 bg-gray-800/60 backdrop-blur shadow-2xl">
+            <div className="pointer-events-auto flex items-center gap-3 px-4 py-2 rounded-full border border-white/10 bg-[#1F1B24]/60 backdrop-blur shadow-2xl">
               <button
                 onClick={toggleMute}
                 title={isMuted ? "Mikrofon kapalı" : "Mikrofon açık"}
                 className={`p-2 rounded-full ${
                   isMuted
                     ? "bg-red-600 text-white"
-                    : "bg-green-600 text-white hover:bg-green-500"
+                    : "bg-emerald-600 text-white hover:bg-emerald-500"
                 }`}
               >
                 <FontAwesomeIcon
@@ -1123,7 +1147,7 @@ const VoiceChannel: React.FC<VoiceChannelProps> = ({ channelId, noUI }) => {
                 className={`p-2 rounded-full ${
                   isDeafened
                     ? "bg-red-600 text-white"
-                    : "bg-green-600 text-white hover:bg-green-500"
+                    : "bg-emerald-600 text-white hover:bg-emerald-500"
                 }`}
               >
                 <FontAwesomeIcon
@@ -1141,7 +1165,7 @@ const VoiceChannel: React.FC<VoiceChannelProps> = ({ channelId, noUI }) => {
                 className={`p-2 rounded-full ${
                   isSharing
                     ? "bg-red-600 text-white"
-                    : "bg-green-600 text-white hover:bg-green-500"
+                    : "bg-emerald-600 text-white hover:bg-emerald-500"
                 }`}
               >
                 <FontAwesomeIcon icon={faDisplay} className="w-4 h-4" />
@@ -1157,15 +1181,15 @@ const VoiceChannel: React.FC<VoiceChannelProps> = ({ channelId, noUI }) => {
       {/* Davet Modali */}
       {showInvite && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50">
-          <div className="w-full max-w-md bg-gray-800 border border-gray-700 rounded-2xl p-6 shadow-2xl">
+          <div className="w-full max-w-md bg-[#1F1B24] border border-gray-600 rounded-2xl p-6 shadow-2xl">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-white text-lg font-semibold">
+              <h3 className="text-gray-100 text-lg font-semibold">
                 Davet Bağlantısı
               </h3>
               <button
                 onClick={() => setShowInvite(false)}
                 title="Kapat"
-                className="p-1 rounded bg-gray-700 hover:bg-gray-600 text-gray-100"
+                className="p-1 rounded bg-[#1F1B24] hover:bg-[#121212] text-gray-100"
               >
                 <FontAwesomeIcon icon={faXmark} className="w-4 h-4" />
               </button>
@@ -1179,7 +1203,7 @@ const VoiceChannel: React.FC<VoiceChannelProps> = ({ channelId, noUI }) => {
                   <input
                     readOnly
                     value={`${window.location.origin}/channel/${id}`}
-                    className="flex-1 px-3 py-2 rounded-l bg-gray-900 border border-gray-700 text-gray-100 focus:outline-none"
+                    className="flex-1 px-3 py-2 rounded-l bg-[#121212] border border-gray-600 text-gray-100 focus:outline-none"
                   />
                   <button
                     onClick={async () => {
@@ -1193,8 +1217,8 @@ const VoiceChannel: React.FC<VoiceChannelProps> = ({ channelId, noUI }) => {
                     }}
                     className={`px-3 rounded-r border border-l-0 ${
                       copied
-                        ? "bg-green-600 text-white border-green-600"
-                        : "bg-gray-700 text-gray-100 hover:bg-gray-600 border-gray-700"
+                        ? "bg-emerald-600 text-white border-emerald-600"
+                        : "bg-[#1F1B24] text-gray-100 hover:bg-[#121212] border-gray-600"
                     }`}
                     title="Kopyala"
                   >
@@ -1238,7 +1262,7 @@ const VoiceChannel: React.FC<VoiceChannelProps> = ({ channelId, noUI }) => {
             <div className="flex justify-end mt-6">
               <button
                 onClick={() => setShowInvite(false)}
-                className="px-4 py-2 rounded bg-gray-700 hover:bg-gray-600 text-gray-100"
+                className="px-4 py-2 rounded bg-[#1F1B24] hover:bg-[#121212] text-gray-100"
               >
                 Kapat
               </button>

@@ -21,7 +21,7 @@ type ServerRailProps = {
 const InitialsCircle: React.FC<{ name: string }> = ({ name }) => {
   const letter = (name?.[0] || "?").toUpperCase();
   return (
-    <span className="w-12 h-12 rounded-full bg-gray-600 text-white flex items-center justify-center text-base font-semibold select-none">
+    <span className="w-12 h-12 rounded-full bg-[#121212] text-white flex items-center justify-center text-base font-semibold select-none">
       {letter}
     </span>
   );
@@ -47,7 +47,7 @@ const ServerAvatar: React.FC<{ name: string; icon?: string | null }> = ({
 };
 
 const SkeletonDot: React.FC = () => (
-  <div className="w-12 h-12 rounded-full bg-gray-700/60 border border-gray-600 animate-pulse" />
+  <div className="w-12 h-12 rounded-full bg-[#121212]/60 border border-gray-600 animate-pulse" />
 );
 
 const ServerRail: React.FC<ServerRailProps> = ({
@@ -62,7 +62,7 @@ const ServerRail: React.FC<ServerRailProps> = ({
 }) => {
   // Debug: Track prop changes
   useEffect(() => {
-    console.log('ServerRail useEffect: servers prop changed to:', servers);
+    console.log("ServerRail useEffect: servers prop changed to:", servers);
   }, [servers]);
 
   const handleKeyActivate = (
@@ -77,7 +77,7 @@ const ServerRail: React.FC<ServerRailProps> = ({
 
   return (
     <aside
-      className="w-16 bg-gray-800 border-r border-gray-700 h-full min-h-full flex flex-col items-center py-3 space-y-3 overflow-y-auto"
+      className="w-16 bg-black border-r border-gray-800 h-full min-h-full flex flex-col items-center py-4 space-y-4 overflow-y-auto"
       aria-label="Sunucu Çubuğu"
     >
       {/* Kısa İşlem Butonları */}
@@ -86,7 +86,7 @@ const ServerRail: React.FC<ServerRailProps> = ({
           onClick={() => onInvite(selectedServerId)}
           title="Sunucu davet bağlantısı"
           aria-label="Sunucu davet bağlantısı"
-          className="w-10 h-10 rounded-full flex items-center justify-center bg-gray-700/60 text-gray-200 hover:text-white hover:bg-gray-600 border border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className="w-12 h-12 rounded-2xl flex items-center justify-center bg-gradient-to-br from-violet-600/20 to-purple-600/20 text-violet-300 hover:text-white hover:from-violet-600/30 hover:to-purple-600/30 border border-violet-500/30 hover:border-violet-400/50 focus:outline-none focus:ring-2 focus:ring-violet-500 transition-all duration-300 backdrop-blur-sm"
           type="button"
         >
           {/* Info icon */}
@@ -110,7 +110,7 @@ const ServerRail: React.FC<ServerRailProps> = ({
           onClick={() => onEdit(selectedServerId)}
           title="Sunucuyu düzenle"
           aria-label="Sunucuyu düzenle"
-          className="w-10 h-10 rounded-full flex items-center justify-center bg-gray-700/60 text-gray-200 hover:text-white hover:bg-gray-600 border border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className="w-10 h-10 rounded-full flex items-center justify-center bg-[#121212]/60 text-gray-200 hover:text-white hover:bg-[#121212] border border-gray-600 focus:outline-none focus:ring-2 focus:ring-violet-500"
           type="button"
         >
           {/* Edit icon */}
@@ -140,7 +140,7 @@ const ServerRail: React.FC<ServerRailProps> = ({
           onClick={onCreate}
           title="Sunucu oluştur"
           aria-label="Sunucu oluştur"
-          className="w-10 h-10 rounded-full flex items-center justify-center bg-blue-600 text-white hover:bg-blue-500 border border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className="w-10 h-10 rounded-full flex items-center justify-center bg-scroll-accent text-white hover:bg-scroll-accent-strong border border-violet-500 focus:outline-none focus:ring-2 focus:ring-violet-500"
           type="button"
         >
           {/* Plus icon */}
@@ -151,17 +151,25 @@ const ServerRail: React.FC<ServerRailProps> = ({
             viewBox="0 0 24 24"
             aria-hidden="true"
           >
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M12 4v16m8-8H4"
+            />
           </svg>
         </button>
       </div>
 
       {/* Ayırıcı */}
-      <div className="w-10 h-px bg-gray-700" />
+      <div className="w-10 h-px bg-[#121212]" />
 
       {/* Sunucular */}
       <div className="flex flex-col items-center space-y-3 w-full">
-        {console.log('ServerRail: servers prop:', servers, 'length:', servers.length)}
+        {/* 
+          INFO: Sunucu listesi prop'u ve uzunluğu konsola yazılabilir fakat JSX'e doğrudan {console.log(...)} eklemek Type 'void' is not assignable to type 'ReactNode' hatasına yol açar.
+          Bunun yerine dışarıda bir console.log veya useEffect kullanmak daha doğru olur. 
+        */}
         {loading ? (
           <>
             <SkeletonDot />
@@ -184,8 +192,8 @@ const ServerRail: React.FC<ServerRailProps> = ({
                   onKeyDown={(e) => handleKeyActivate(e, s.id)}
                   className={`relative w-12 h-12 rounded-full flex items-center justify-center text-white text-base border transition-all focus:outline-none ${
                     selected
-                      ? "bg-gray-700/80 border-blue-500 ring-2 ring-blue-500/40 shadow-[0_0_0_2px_rgba(37,99,235,0.35)]"
-                      : "bg-gray-700/60 border-gray-600 hover:bg-gray-600"
+                      ? "bg-[#121212]/80 border-violet-500 ring-2 ring-violet-500/40 shadow-[0_0_0_2px_rgba(139,92,246,0.35)]"
+                      : "bg-[#121212]/60 border-gray-600 hover:bg-[#121212]"
                   }`}
                   title={s.name}
                   aria-current={selected ? "page" : undefined}

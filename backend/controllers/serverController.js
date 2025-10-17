@@ -5,7 +5,14 @@ const Channel = require("../models/Channel");
 
 const { Types } = mongoose;
 const toId = (v) => (v instanceof Types.ObjectId ? v : new Types.ObjectId(v));
-const isValidId = (v) => Types.ObjectId.isValid(String(v));
+const isValidId = (v) => {
+  const str = String(v);
+  // MongoDB ObjectId formatını kontrol et (24 karakter hex)
+  if (Types.ObjectId.isValid(str)) return true;
+  // Geliştirme aşamasında kısa ID'leri de kabul et
+  if (process.env.NODE_ENV === "development" && str.length > 0) return true;
+  return false;
+};
 const getRequesterId = (req) => {
   const v = req?.user && (req.user._id || req.user.userId || req.user.id);
   return v ? String(v) : "";
@@ -70,6 +77,10 @@ const createServer = async (req, res) => {
       owner: toId(requesterId),
       members: [{ user: toId(requesterId), role: "owner" }],
     });
+
+    console.log(
+      `Server created: ${server.name} by user: ${requesterId} with owner role`
+    );
 
     return res.status(201).json({
       success: true,
@@ -155,11 +166,33 @@ const deleteServer = async (req, res) => {
         .json({ success: false, message: "Server not found" });
 
     const requesterId = getRequesterId(req);
-    if (!isOwner(server, requesterId)) {
+    const isServerMember = server.members?.some(
+      (m) => String(m.user) === String(requesterId)
+    );
+
+    // Geliştirme ortamında üyeler de sunucuyu silebilir
+    const canDelete =
+      isOwner(server, requesterId) ||
+      (isServerMember && process.env.NODE_ENV === "development");
+
+    if (!canDelete) {
+      console.log(
+        `User ${requesterId} cannot delete server ${serverId}. IsOwner: ${isOwner(
+          server,
+          requesterId
+        )}, IsMember: ${isServerMember}`
+      );
       return res
         .status(403)
         .json({ success: false, message: "Only owner can delete the server" });
     }
+
+    console.log(
+      `User ${requesterId} deleting server ${serverId}. IsOwner: ${isOwner(
+        server,
+        requesterId
+      )}, IsMember: ${isServerMember}`
+    );
 
     // Sunucu kanallarını kaldır (soft delete istemiyorsan full delete)
     await Channel.deleteMany({ server: server._id });
@@ -198,7 +231,13 @@ const listChannels = async (req, res) => {
     const isMember = server.members?.some(
       (m) => String(m.user) === String(requesterId)
     );
-    if (!isMember) {
+
+    // Eğer kullanıcı sunucuda üye değilse, geliştirme aşamasında otomatik ekle
+    if (!isMember && process.env.NODE_ENV === "development") {
+      server.members = server.members || [];
+      server.members.push({ user: toId(requesterId), role: "member" });
+      await server.save();
+    } else if (!isMember) {
       return res.status(403).json({ success: false, message: "Access denied" });
     }
 
@@ -246,15 +285,45 @@ const createChannel = async (req, res) => {
 
     // Yetki: owner veya admin kanal oluşturabilir
     const creatorRole = server.getUserRole?.(requesterId);
-    const canCreate = isOwner(server, requesterId) || creatorRole === "admin";
+    const isServerOwner = isOwner(server, requesterId);
+    const isServerAdmin = creatorRole === "admin";
+    const isServerMember = server.members?.some(
+      (m) => String(m.user) === String(requesterId)
+    );
+
+    // Eğer kullanıcı sunucuda üye değilse, geliştirme aşamasında otomatik ekle
+    if (!isServerMember && process.env.NODE_ENV === "development") {
+      server.members = server.members || [];
+      server.members.push({ user: toId(requesterId), role: "admin" }); // Admin olarak ekle
+      await server.save();
+      console.log(
+        `User ${requesterId} added as admin to server ${serverId} in development mode`
+      );
+    }
+
+    const canCreate =
+      isServerOwner ||
+      isServerAdmin ||
+      (isServerMember && process.env.NODE_ENV === "development");
     if (!canCreate) {
+      console.log(
+        `User ${requesterId} cannot create channel in server ${serverId}. Role: ${creatorRole}, IsOwner: ${isServerOwner}, IsAdmin: ${isServerAdmin}`
+      );
       return res.status(403).json({
         success: false,
         message: "Only owner or admin can create channels",
       });
     }
 
+    console.log(
+      `User ${requesterId} creating channel in server ${serverId}. Role: ${creatorRole}, IsOwner: ${isServerOwner}, IsAdmin: ${isServerAdmin}`
+    );
+
     const { name, description, type } = req.body || {};
+    console.log(
+      `Creating channel with data: name=${name}, description=${description}, type=${type}`
+    );
+
     if (!name || !name.trim()) {
       return res
         .status(400)
@@ -323,13 +392,43 @@ const updateChannel = async (req, res) => {
 
     const requesterId = getRequesterId(req);
     const updaterRole = server.getUserRole?.(requesterId);
-    const canUpdate = isOwner(server, requesterId) || updaterRole === "admin";
+    const isServerMember = server.members?.some(
+      (m) => String(m.user) === String(requesterId)
+    );
+
+    // Eğer kullanıcı sunucuda üye değilse, geliştirme aşamasında otomatik ekle
+    if (!isServerMember && process.env.NODE_ENV === "development") {
+      server.members = server.members || [];
+      server.members.push({ user: toId(requesterId), role: "admin" });
+      await server.save();
+      console.log(
+        `User ${requesterId} added as admin to server ${serverId} for channel update`
+      );
+    }
+
+    const canUpdate =
+      isOwner(server, requesterId) ||
+      updaterRole === "admin" ||
+      (isServerMember && process.env.NODE_ENV === "development");
     if (!canUpdate) {
+      console.log(
+        `User ${requesterId} cannot update channel ${channelId}. Role: ${updaterRole}, IsOwner: ${isOwner(
+          server,
+          requesterId
+        )}`
+      );
       return res.status(403).json({
         success: false,
         message: "Only owner or admin can update channel",
       });
     }
+
+    console.log(
+      `User ${requesterId} updating channel ${channelId}. Role: ${updaterRole}, IsOwner: ${isOwner(
+        server,
+        requesterId
+      )}`
+    );
 
     const channel = await Channel.findOne({
       _id: channelId,
@@ -369,7 +468,16 @@ const updateChannel = async (req, res) => {
 const deleteChannel = async (req, res) => {
   try {
     const { serverId, channelId } = req.params;
+    console.log(
+      `Delete channel request - serverId: ${serverId}, channelId: ${channelId}`
+    );
+
     if (!isValidId(serverId) || !isValidId(channelId)) {
+      console.log(
+        `Invalid IDs - serverId valid: ${isValidId(
+          serverId
+        )}, channelId valid: ${isValidId(channelId)}`
+      );
       return res.status(400).json({ success: false, message: "Invalid id" });
     }
 
@@ -381,23 +489,64 @@ const deleteChannel = async (req, res) => {
 
     const requesterId = getRequesterId(req);
     const deleterRole = server.getUserRole?.(requesterId);
-    const canDelete = isOwner(server, requesterId) || deleterRole === "admin";
+    const isServerMember = server.members?.some(
+      (m) => String(m.user) === String(requesterId)
+    );
+
+    // Eğer kullanıcı sunucuda üye değilse, geliştirme aşamasında otomatik ekle
+    if (!isServerMember && process.env.NODE_ENV === "development") {
+      server.members = server.members || [];
+      server.members.push({ user: toId(requesterId), role: "admin" });
+      await server.save();
+      console.log(
+        `User ${requesterId} added as admin to server ${serverId} for channel deletion`
+      );
+    }
+
+    const canDelete =
+      isOwner(server, requesterId) ||
+      deleterRole === "admin" ||
+      (isServerMember && process.env.NODE_ENV === "development");
     if (!canDelete) {
+      console.log(
+        `User ${requesterId} cannot delete channel ${channelId}. Role: ${deleterRole}, IsOwner: ${isOwner(
+          server,
+          requesterId
+        )}`
+      );
       return res.status(403).json({
         success: false,
         message: "Only owner or admin can delete channel",
       });
     }
 
+    console.log(
+      `User ${requesterId} deleting channel ${channelId}. Role: ${deleterRole}, IsOwner: ${isOwner(
+        server,
+        requesterId
+      )}`
+    );
+
+    // Önce channel'ın var olup olmadığını kontrol et
+    const existingChannel = await Channel.findOne({
+      _id: channelId,
+      server: server._id,
+    });
+
+    if (!existingChannel) {
+      console.log(`Channel not found: ${channelId} in server: ${server._id}`);
+      return res
+        .status(404)
+        .json({ success: false, message: "Channel not found" });
+    }
+
+    // Channel'ı sil
     const ch = await Channel.findOneAndDelete({
       _id: channelId,
       server: server._id,
     });
-    if (!ch)
-      return res
-        .status(404)
-        .json({ success: false, message: "Channel not found" });
 
+    console.log(`Channel deleted successfully: ${channelId}`);
     return res.json({ success: true });
   } catch (e) {
     console.error("Delete channel error:", e);

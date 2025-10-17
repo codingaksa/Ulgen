@@ -154,7 +154,7 @@ const ChannelSidebar: React.FC<ChannelSidebarProps> = React.memo(
 
           <div className="space-y-1">
             {textChannels.length === 0 ? (
-              <div className="text-gray-500 text-sm bg-gray-800/50 border border-dashed border-gray-700 rounded-lg p-4 text-center">
+              <div className="text-gray-500 text-sm bg-black/50 border border-dashed border-gray-800 rounded-lg p-4 text-center">
                 Sunucu seçin veya kanal ekleyin.
               </div>
             ) : (
@@ -178,7 +178,7 @@ const ChannelSidebar: React.FC<ChannelSidebarProps> = React.memo(
                       "relative group flex items-center justify-between p-2 rounded-lg cursor-pointer outline-none transition",
                       isActive
                         ? "bg-blue-900/30 text-white border border-blue-700 border-l-4 border-l-blue-500"
-                        : "text-gray-300 bg-gray-800/40 hover:text-white hover:bg-gray-700/70 focus:ring-2 focus:ring-blue-600/50",
+                        : "text-gray-300 bg-black/40 hover:text-white hover:bg-black/70 focus:ring-2 focus:ring-blue-600/50",
                     ].join(" ")}
                   >
                     <div className="flex items-center space-x-2 min-w-0">
@@ -234,35 +234,35 @@ const ChannelSidebar: React.FC<ChannelSidebarProps> = React.memo(
           createPortal(
             <div
               ref={menuRef}
-              className="fixed z-50 bg-gray-800 border border-gray-700 rounded-md shadow-lg text-gray-100 py-1 w-44"
+              className="fixed z-50 bg-black border border-gray-800 rounded-md shadow-lg text-gray-100 py-1 w-44"
               style={{ left: ctx.x + 4, top: ctx.y + 4 }}
               role="menu"
               aria-label="Kanal menüsü"
             >
               <button
                 onClick={handleGoTo}
-                className="block w-full text-left px-3 py-2 hover:bg-gray-700 focus:bg-gray-700 outline-none"
+                className="block w-full text-left px-3 py-2 hover:bg-black focus:bg-black outline-none"
                 role="menuitem"
               >
                 Kanala Git
               </button>
               <button
                 onClick={handleCopyLink}
-                className="block w-full text-left px-3 py-2 hover:bg-gray-700 focus:bg-gray-700 outline-none"
+                className="block w-full text-left px-3 py-2 hover:bg-black focus:bg-black outline-none"
                 role="menuitem"
               >
                 Linki Kopyala
               </button>
               <button
                 onClick={handleRename}
-                className="block w-full text-left px-3 py-2 hover:bg-gray-700 focus:bg-gray-700 outline-none"
+                className="block w-full text-left px-3 py-2 hover:bg-black focus:bg-black outline-none"
                 role="menuitem"
               >
                 Yeniden Adlandır
               </button>
               <button
                 onClick={handleDelete}
-                className="block w-full text-left px-3 py-2 hover:bg-gray-700 focus:bg-gray-700 text-red-300 outline-none"
+                className="block w-full text-left px-3 py-2 hover:bg-black focus:bg-black text-red-300 outline-none"
                 role="menuitem"
               >
                 Sil
@@ -300,7 +300,7 @@ const ChannelSidebar: React.FC<ChannelSidebarProps> = React.memo(
               <button
                 type="button"
                 onClick={onCreateVoice}
-                className="w-full text-gray-500 text-sm bg-gray-800/50 border border-dashed border-gray-700 rounded-lg p-4 text-center hover:text-white hover:bg-gray-700/60 focus:outline-none focus:ring-2 focus:ring-blue-600/40"
+                className="w-full text-gray-500 text-sm bg-black/50 border border-dashed border-gray-800 rounded-lg p-4 text-center hover:text-white hover:bg-black/60 focus:outline-none focus:ring-2 focus:ring-blue-600/40"
                 title="Sesli Kanal Oluştur"
                 aria-label="Sesli kanal oluştur"
               >
@@ -329,7 +329,7 @@ const ChannelSidebar: React.FC<ChannelSidebarProps> = React.memo(
                         e.stopPropagation();
                         onDeleteVoice(vc.id, vc.name);
                       }}
-                      className="hidden group-hover:flex items-center justify-center absolute top-1 right-1 w-6 h-6 rounded bg-red-600/80 hover:bg-red-600 text-white"
+                      className="flex items-center justify-center absolute top-1 right-1 w-6 h-6 rounded bg-red-600/80 hover:bg-red-600 text-white opacity-0 group-hover:opacity-100 transition-opacity"
                     >
                       <FontAwesomeIcon icon={faTrash} className="w-3.5 h-3.5" />
                     </button>

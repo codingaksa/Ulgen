@@ -12,8 +12,7 @@ export interface ChannelItem {
 }
 
 const API =
-  (import.meta as any).env?.VITE_API_BASE ||
-  "https://ulgen-backend.onrender.com/api";
+  (import.meta as any).env?.VITE_API_BASE || "http://localhost:5000/api";
 
 export async function getServers(token: string): Promise<ServerItem[]> {
   console.log("Fetching servers with API:", API);

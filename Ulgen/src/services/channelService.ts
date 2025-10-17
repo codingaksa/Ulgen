@@ -1,7 +1,6 @@
 // client/src/services/channelService.ts
 const API_BASE_URL =
-  (import.meta as any).env?.VITE_API_BASE ||
-  "https://ulgen-backend.onrender.com/api";
+  (import.meta as any).env?.VITE_API_BASE || "http://localhost:5000/api";
 
 export interface Channel {
   _id: string;

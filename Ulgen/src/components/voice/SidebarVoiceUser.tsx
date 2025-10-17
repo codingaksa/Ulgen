@@ -80,7 +80,7 @@ const SidebarVoiceUser: React.FC<SidebarVoiceUserProps> = ({
       </span>
 
       <div className="flex items-center gap-1 shrink-0 opacity-80 group-hover:opacity-100 transition-opacity">
-        <button
+        <div
           onClick={(e) => {
             e.stopPropagation();
             toggle("toggle-mic");
@@ -96,8 +96,8 @@ const SidebarVoiceUser: React.FC<SidebarVoiceUserProps> = ({
             icon={isMuted ? faMicrophoneSlash : faMicrophone}
             className="w-3 h-3"
           />
-        </button>
-        <button
+        </div>
+        <div
           onClick={(e) => {
             e.stopPropagation();
             toggle("toggle-deafen");
@@ -113,7 +113,7 @@ const SidebarVoiceUser: React.FC<SidebarVoiceUserProps> = ({
             icon={isDeafened ? faBan : faHeadphones}
             className="w-3.5 h-3.5"
           />
-        </button>
+        </div>
       </div>
     </div>
   );

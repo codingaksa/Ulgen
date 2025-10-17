@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
+import { io, Socket } from "socket.io-client";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faVolumeHigh } from "@fortawesome/free-solid-svg-icons";
 import SidebarVoiceUser from "./SidebarVoiceUser";
@@ -27,8 +28,86 @@ const SidebarVoiceChannel: React.FC<SidebarVoiceChannelProps> = ({
   >([]);
   const { currentUser } = useAuth();
   const prevMembersRef = useRef<string[]>([]);
+  const socketRef = useRef<Socket | null>(null);
 
   useEffect(() => {
+    // Ensure socket connection for presence
+    if (!socketRef.current) {
+      const SOCKET_BASE =
+        (import.meta as any).env?.VITE_SOCKET_BASE || "http://localhost:5000";
+      socketRef.current = io(SOCKET_BASE, {
+        transports: ["websocket", "polling"],
+        withCredentials: true,
+      });
+    }
+    const s = socketRef.current!;
+
+    // Ask backend for current room members without joining
+    const fetchState = () => {
+      try {
+        s.emit("get-room-state", String(channelId), (resp: any) => {
+          const list = Array.isArray(resp?.users) ? resp.users : [];
+          setMembers(
+            list.map((u: any) => ({
+              id: u.userId,
+              username:
+                u.username || `Kullanıcı ${String(u.userId || "").slice(0, 4)}`,
+              isMuted: !!u.isMuted,
+              isDeafened: !!u.isDeafened,
+              isSpeaking: !!u.isSpeaking,
+            }))
+          );
+        });
+      } catch {}
+    };
+
+    const onJoined = (p: any) => {
+      if (!p?.userId) return;
+      setMembers((prev) => {
+        if (prev.some((m) => m.id === p.userId)) return prev;
+        return [
+          ...prev,
+          {
+            id: p.userId,
+            username: `Kullanıcı ${String(p.userId).slice(0, 4)}`,
+            isMuted: false,
+            isDeafened: false,
+            isSpeaking: false,
+          },
+        ];
+      });
+    };
+    const onLeft = (p: any) => {
+      if (!p?.userId) return;
+      setMembers((prev) => prev.filter((m) => m.id !== p.userId));
+    };
+    const onPresence = (p: any) => {
+      const { userId, username, isMuted, isDeafened, isSpeaking } = p || {};
+      if (!userId) return;
+      setMembers((prev) =>
+        prev.map((m) =>
+          m.id === userId
+            ? {
+                ...m,
+                username: username || m.username,
+                isMuted: typeof isMuted === "boolean" ? isMuted : m.isMuted,
+                isDeafened:
+                  typeof isDeafened === "boolean" ? isDeafened : m.isDeafened,
+                isSpeaking:
+                  typeof isSpeaking === "boolean" ? isSpeaking : m.isSpeaking,
+              }
+            : m
+        )
+      );
+    };
+
+    s.on("user-joined", onJoined);
+    s.on("user-left", onLeft);
+    s.on("presence-update", onPresence);
+
+    // Initial fetch and periodic refresh as fallback
+    fetchState();
+    const iv = setInterval(fetchState, 5000);
     const read = () => {
       try {
         const raw = localStorage.getItem("voicePresence");
@@ -84,6 +163,12 @@ const SidebarVoiceChannel: React.FC<SidebarVoiceChannelProps> = ({
     return () => {
       window.removeEventListener("storage", onStorage);
       window.removeEventListener("voice-presence-updated", onImmediate as any);
+      try {
+        s.off("user-joined", onJoined);
+        s.off("user-left", onLeft);
+        s.off("presence-update", onPresence);
+      } catch {}
+      clearInterval(iv);
     };
   }, [channelId]);
 
@@ -105,20 +190,19 @@ const SidebarVoiceChannel: React.FC<SidebarVoiceChannelProps> = ({
 
   return (
     <div className="space-y-1">
-      <div className="flex items-center gap-2 w-full px-2 py-1.5 rounded hover:bg-gray-700/40 transition-colors text-gray-300 hover:text-white group">
+      <div className="flex items-center gap-2 w-full px-2 py-1.5 rounded hover:bg-[#1F1B24]/60 transition-colors text-gray-100 hover:text-gray-100 group relative">
         <FontAwesomeIcon icon={faVolumeHigh} className="w-4 h-4" />
         <span className="text-sm font-medium select-none cursor-default">
           {name}
         </span>
-        <span className="ml-auto text-xs opacity-60">{members.length}</span>
-        <button
+        <span className="text-xs opacity-60">{members.length}</span>
+        <div
           onClick={(e) => {
             e.stopPropagation();
             setIsExpanded((v) => !v);
           }}
-          className="ml-2 px-1 text-gray-400 hover:text-white"
+          className="ml-auto px-1 text-gray-400 hover:text-gray-100 cursor-pointer"
           title={isExpanded ? "Daralt" : "Genişlet"}
-          type="button"
         >
           {isExpanded ? (
             <svg
@@ -147,7 +231,7 @@ const SidebarVoiceChannel: React.FC<SidebarVoiceChannelProps> = ({
               />
             </svg>
           )}
-        </button>
+        </div>
       </div>
 
       {isExpanded && members.length > 0 && (

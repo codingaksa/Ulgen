@@ -1,7 +1,8 @@
 // client/src/pages/Dashboard.tsx
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext.tsx";
+import { io, Socket } from "socket.io-client";
 import {
   getServers,
   createServer,
@@ -13,6 +14,13 @@ import {
   deleteChannelService,
 } from "../services/serverService.ts";
 import { useToast } from "../components/Toast.tsx";
+import { avatarService } from "../services/avatarService";
+import {
+  messageService,
+  type Message as MessageType,
+} from "../services/messageService";
+import { friendService } from "../services/friendService";
+import { fileService } from "../services/fileService";
 import {
   createInviteLink,
   verifyInviteToken,
@@ -37,6 +45,10 @@ interface User {
   username: string;
   status: "online" | "away" | "dnd" | "offline";
   avatar?: string;
+  role?: "owner" | "admin" | "member";
+  email?: string;
+  lastSeen?: string;
+  joinedAt?: string;
 }
 
 const Dashboard: React.FC = () => {
@@ -142,51 +154,48 @@ const Dashboard: React.FC = () => {
     description?: string;
     error?: string;
   }>({ open: false, name: "", description: "" });
-  const [users] = useState<User[]>([
-    { id: "1", username: "Ahmet Yılmaz", status: "online" },
-    { id: "2", username: "Zeynep Kaya", status: "online" },
-    { id: "3", username: "Mehmet Demir", status: "online" },
-    { id: "4", username: "Ayşe Şahin", status: "online" },
-    { id: "5", username: "Can Öztürk", status: "online" },
-    { id: "6", username: "Elif Yıldız", status: "away" },
-    { id: "7", username: "Burak Arslan", status: "away" },
-    { id: "8", username: "Selin Çelik", status: "dnd" },
-    { id: "9", username: "Deniz Aydın", status: "offline" },
-    { id: "10", username: "Kaan Koç", status: "offline" },
-  ]);
+
+  // Socket.IO bağlantısı
+  const socketRef = useRef<Socket | null>(null);
+  const selectedChannelId = activeChannelId;
+
+  const [users, setUsers] = useState<User[]>([]);
 
   useEffect(() => {
-    // Mock mesajlar
-    const mockMessages: Message[] = [
-      {
-        id: "1",
-        username: "Ahmet Yılmaz",
-        content:
-          "Merhaba arkadaşlar! Bu yeni sohbet sistemi harika görünüyor 🎉",
-        timestamp: "14:32",
-      },
-      {
-        id: "2",
-        username: "Zeynep Kaya",
-        content:
-          "Renkleri gerçekten çok net görebiliyorum, erişilebilirlik için teşekkürler!",
-        timestamp: "14:35",
-      },
-      {
-        id: "3",
-        username: "Mehmet Demir",
-        content: "Kontrast oranı mükemmel. Göz yormuyor hiç 👍",
-        timestamp: "14:38",
-      },
-      {
-        id: "4",
-        username: "Ayşe Şahin",
-        content: "Arayüz çok sezgisel. Tüm butonlar açıkça etiketlenmiş.",
-        timestamp: "14:42",
-      },
-    ];
-    setMessages(mockMessages);
+    // Mesajlar başlangıçta boş, kanal seçildiğinde yüklenecek
   }, []);
+
+  // Mesaj geçmişini yükle
+  const loadMessageHistory = async (channelId: string) => {
+    if (!channelId) return;
+
+    try {
+      const response = await messageService.getMessages(channelId, 1, 50);
+      if (response.success) {
+        // Mesajları formatla
+        const formattedMessages = response.messages.map((msg: MessageType) => ({
+          id: msg._id,
+          username: msg.username,
+          content: msg.content,
+          timestamp: msg.formattedTime,
+          avatar: msg.avatar,
+        }));
+        setMessages(formattedMessages);
+      }
+    } catch (error) {
+      console.error("Mesaj geçmişi yüklenirken hata:", error);
+      showToast("error", "Mesaj geçmişi yüklenirken hata oluştu");
+    }
+  };
+
+  // Kanal değiştiğinde mesaj geçmişini yükle
+  useEffect(() => {
+    if (selectedChannelId) {
+      loadMessageHistory(selectedChannelId);
+    } else {
+      setMessages([]);
+    }
+  }, [selectedChannelId]);
 
   // Fetch servers on mount
   useEffect(() => {
@@ -246,23 +255,15 @@ const Dashboard: React.FC = () => {
       getServers(token)
         .then((list) => {
           console.log("Dashboard: Received servers list:", list);
-          const apiServers = list.map((s) => ({
-            id: (s as any).id || (s as any)._id || s.id,
-            name: s.name,
-            owner: (s as any).owner,
-          }));
-          let merged = [...apiServers];
-          try {
-            const rawJoined = localStorage.getItem("clientJoinedServers");
-            const joined: Array<{ id: string; name: string }> = rawJoined
-              ? JSON.parse(rawJoined)
-              : [];
-            for (const j of joined) {
-              if (!merged.some((x) => x.id === j.id)) merged.push(j);
-            }
-          } catch {}
-          console.log("Setting servers state to:", merged);
-          setServers(merged);
+          const apiServers: { id: string; name: string; owner?: string }[] =
+            list.map((s) => ({
+              id: (s as any).id || (s as any)._id || s.id,
+              name: s.name,
+              owner: (s as any).owner,
+            }));
+          // Sadece backend'den gelen sunucuları kullan, localStorage'dan eski sunucuları ekleme
+          console.log("Setting servers state to:", apiServers);
+          setServers(apiServers);
         })
         .catch(() => {});
     })();
@@ -313,20 +314,156 @@ const Dashboard: React.FC = () => {
       .catch(() => {});
   }, [selectedServerId]);
 
+  // Socket.IO bağlantısını kur
+  useEffect(() => {
+    if (!socketRef.current) {
+      const SOCKET_BASE =
+        (import.meta as any).env?.VITE_SOCKET_BASE || "http://localhost:5000";
+      socketRef.current = io(SOCKET_BASE, {
+        transports: ["websocket", "polling"],
+        withCredentials: true,
+      });
+
+      // Mesaj dinleyicisi
+      socketRef.current.on("new-message", (messageData) => {
+        const message: Message = {
+          id: messageData.id,
+          username: messageData.username,
+          content: messageData.content,
+          timestamp: new Date(messageData.timestamp).toLocaleTimeString(
+            "tr-TR",
+            {
+              hour: "2-digit",
+              minute: "2-digit",
+            }
+          ),
+        };
+        setMessages((prev) => [...prev, message]);
+      });
+
+      // Kanal üyelerini güncelle
+      socketRef.current.on("get-channel-members", (data) => {
+        if (data?.members) {
+          const realUsers = data.members.map((member: any) => ({
+            id: member.userId,
+            username: member.username,
+            status: member.isOnline ? "online" : "offline",
+          }));
+          setUsers(realUsers);
+        }
+      });
+
+      // Gerçek zamanlı ayar güncellemelerini dinle
+      socketRef.current.on("user-settings-updated", (data) => {
+        console.log("Kullanıcı ayarları güncellendi:", data);
+        // Toast bildirimi göster
+        showToast("info", `${data.username} ayarlarını güncelledi`);
+      });
+
+      socketRef.current.on("user-status-updated", (data) => {
+        console.log("Kullanıcı durumu güncellendi:", data);
+        // Kullanıcı durumunu güncelle
+        setUsers((prev) =>
+          prev.map((user) =>
+            user.id === data.userId ? { ...user, status: data.status } : user
+          )
+        );
+        showToast(
+          "info",
+          `${data.username} durumunu ${data.status} olarak değiştirdi`
+        );
+      });
+
+      socketRef.current.on("audio-video-settings-updated", (data) => {
+        console.log("Ses/video ayarları güncellendi:", data);
+        showToast("info", `${data.username} ses/video ayarlarını güncelledi`);
+      });
+    }
+
+    return () => {
+      if (socketRef.current) {
+        socketRef.current.disconnect();
+        socketRef.current = null;
+      }
+    };
+  }, []);
+
+  // Sunucu değiştiğinde gerçek üyeleri güncelle
+  useEffect(() => {
+    if (selectedServerId && socketRef.current) {
+      socketRef.current.emit(
+        "get-server-members",
+        selectedServerId,
+        (data: any) => {
+          if (data?.members) {
+            const realUsers = data.members.map((member: any) => ({
+              id: member.userId,
+              username: member.username,
+              status: member.isOnline ? "online" : "offline",
+              role: member.role,
+              avatar: member.avatar,
+              email: member.email,
+              lastSeen: member.lastSeen,
+              joinedAt: member.joinedAt,
+            }));
+            setUsers(realUsers);
+          }
+        }
+      );
+    }
+  }, [selectedServerId]);
+
   const handleSendMessage = (e: React.FormEvent) => {
     e.preventDefault();
-    if (newMessage.trim()) {
-      const message: Message = {
-        id: Date.now().toString(),
+    if (newMessage.trim() && selectedChannelId && socketRef.current) {
+      // Socket.IO ile mesajı gönder
+      socketRef.current.emit("send-message", {
+        channelId: selectedChannelId,
+        message: newMessage,
         username: currentUser?.username || "Sen",
-        content: newMessage,
-        timestamp: new Date().toLocaleTimeString("tr-TR", {
-          hour: "2-digit",
-          minute: "2-digit",
-        }),
-      };
-      setMessages([...messages, message]);
+        userId: currentUser?.id,
+      });
       setNewMessage("");
+    }
+  };
+
+  // Dosya yükleme fonksiyonu
+  const handleFileUpload = async (
+    event: React.ChangeEvent<HTMLInputElement>
+  ) => {
+    const file = event.target.files?.[0];
+    if (!file || !selectedChannelId) return;
+
+    // Dosya boyutu kontrolü (10MB)
+    if (file.size > 10 * 1024 * 1024) {
+      showToast("error", "Dosya boyutu 10MB'dan küçük olmalıdır");
+      return;
+    }
+
+    try {
+      const response = await fileService.uploadFile(file, selectedChannelId);
+      if (response.success && response.file) {
+        // Dosya mesajı olarak gönder
+        const fileMessage = `${fileService.getFileIcon(file.type)} **${
+          response.file.originalName
+        }** (${fileService.formatFileSize(response.file.size)})`;
+
+        if (socketRef.current) {
+          socketRef.current.emit("send-message", {
+            channelId: selectedChannelId,
+            message: fileMessage,
+            username: currentUser?.username || "Sen",
+            userId: currentUser?.id,
+          });
+        }
+
+        showToast("success", "Dosya başarıyla yüklendi");
+      }
+    } catch (error) {
+      showToast(
+        "error",
+        error instanceof Error ? error.message : "Dosya yüklenirken hata oluştu"
+      );
     }
   };
 
@@ -355,7 +492,7 @@ const Dashboard: React.FC = () => {
 
   return (
     <>
-      <div className="h-[calc(100vh-4.15rem)] bg-gray-900 flex overflow-hidden">
+      <div className="h-[calc(100vh-4.15rem)] bg-black flex overflow-hidden">
         {/* Sol tarafta: Sunucu şeridi */}
         <ServerRail
           servers={servers as any}
@@ -403,7 +540,7 @@ const Dashboard: React.FC = () => {
           }
         />
         {/* Kanal ve kullanıcı bölümü */}
-        <div className="w-68 bg-gray-800 flex flex-col h-full min-h-full">
+        <div className="w-68 bg-black flex flex-col h-full min-h-full border-r border-gray-800">
           {/* Kanallar */}
           <div className="flex-1 p-4 space-y-4 overflow-y-hidden">
             <ChannelSidebar
@@ -451,10 +588,7 @@ const Dashboard: React.FC = () => {
                 const sel = servers.find((s) => s.id === selectedServerId);
                 if (!selectedServerId || !sel) return;
                 if (sel && me && sel.owner && sel.owner !== me) {
-                  showToast(
-                    "error",
-                    "Only owner can create channels"
-                  );
+                  showToast("error", "Only owner can create channels");
                   return;
                 }
                 setVoiceServerId(selectedServerId || null);
@@ -511,7 +645,7 @@ const Dashboard: React.FC = () => {
 
             {showEditServer && (
               <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50">
-                <div className="w-full max-w-md bg-gray-800 border border-gray-700 rounded-2xl p-6 shadow-2xl">
+                <div className="w-full max-w-md bg-[#121212] border border-gray-700 rounded-2xl p-6 shadow-2xl">
                   <h3 className="text-white text-lg font-semibold mb-4">
                     Sunucuyu Düzenle
                   </h3>
@@ -520,14 +654,14 @@ const Dashboard: React.FC = () => {
                       value={editServerName}
                       onChange={(e) => setEditServerName(e.target.value)}
                       placeholder="Sunucu adı"
-                      className="w-full px-4 py-3 rounded-lg bg-gray-900 border border-gray-700 text-white focus:outline-none focus:ring-2 focus:ring-blue-600"
+                      className="w-full px-4 py-3 rounded-lg bg-[#121212] border border-gray-700 text-white focus:outline-none focus:ring-2 focus:ring-blue-600"
                     />
                     <div>
                       <label className="block text-gray-300 text-sm mb-2">
                         Logo
                       </label>
                       <div className="flex items-center space-x-4">
-                        <div className="w-16 h-16 rounded-xl overflow-hidden border border-gray-700 bg-gray-900 flex items-center justify-center">
+                        <div className="w-16 h-16 rounded-xl overflow-hidden border border-gray-700 bg-[#121212] flex items-center justify-center">
                           {editServerIcon ? (
                             <img
                               src={editServerIcon}
@@ -560,7 +694,7 @@ const Dashboard: React.FC = () => {
                           />
                           <label
                             htmlFor="serverLogoEdit"
-                            className="inline-flex items-center px-4 py-2 rounded-lg bg-gray-700 hover:bg-gray-600 text-gray-100 cursor-pointer"
+                            className="inline-flex items-center px-4 py-2 rounded-lg bg-[#121212] hover:bg-[#1F1B24] text-gray-100 cursor-pointer"
                           >
                             Dosya Seç
                           </label>
@@ -571,7 +705,7 @@ const Dashboard: React.FC = () => {
                   <div className="flex justify-end space-x-2 mt-6">
                     <button
                       onClick={() => setShowEditServer(false)}
-                      className="px-4 py-2 rounded-lg border border-gray-600 text-gray-300 hover:bg-gray-700"
+                      className="px-4 py-2 rounded-lg border border-gray-600 text-gray-300 hover:bg-[#121212]"
                     >
                       İptal
                     </button>
@@ -628,7 +762,7 @@ const Dashboard: React.FC = () => {
                           }
                         }
                       }}
-                      className="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white"
+                      className="px-4 py-2 rounded-lg bg-scroll-accent hover:bg-scroll-accent-strong text-white"
                     >
                       Kaydet
                     </button>
@@ -638,7 +772,7 @@ const Dashboard: React.FC = () => {
             )}
             {showCreateVoiceChannel && (
               <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[9999]">
-                <div className="w-full max-w-sm bg-gray-800 border border-gray-700 rounded-2xl p-6 shadow-2xl">
+                <div className="w-full max-w-sm bg-[#121212] border border-gray-700 rounded-2xl p-6 shadow-2xl">
                   <h3 className="text-white text-lg font-semibold mb-3">
                     Yeni Sesli Kanal
                   </h3>
@@ -652,7 +786,7 @@ const Dashboard: React.FC = () => {
                         onChange={(e) =>
                           setVoiceServerId(e.target.value || null)
                         }
-                        className="w-full px-3 py-2 rounded bg-gray-900 border border-gray-700 text-gray-100"
+                        className="w-full px-3 py-2 rounded bg-[#121212] border border-gray-700 text-gray-100"
                       >
                         <option value="">Sunucu seçin</option>
                         {servers.map((s) => (
@@ -667,12 +801,12 @@ const Dashboard: React.FC = () => {
                     value={newVoiceChannelName}
                     onChange={(e) => setNewVoiceChannelName(e.target.value)}
                     placeholder="Kanal adı"
-                    className="w-full px-4 py-3 rounded-lg bg-gray-900 border border-gray-700 text-white focus:outline-none focus:ring-2 focus:ring-blue-600"
+                    className="w-full px-4 py-3 rounded-lg bg-[#121212] border border-gray-700 text-white focus:outline-none focus:ring-2 focus:ring-blue-600"
                   />
                   <div className="flex justify-end space-x-2 mt-6">
                     <button
                       onClick={() => setShowCreateVoiceChannel(false)}
-                      className="px-4 py-2 rounded-lg border border-gray-600 text-gray-300 hover:bg-gray-700"
+                      className="px-4 py-2 rounded-lg border border-gray-600 text-gray-300 hover:bg-[#121212]"
                     >
                       İptal
                     </button>
@@ -718,7 +852,7 @@ const Dashboard: React.FC = () => {
                         setShowCreateVoiceChannel(false);
                         setNewVoiceChannelName("");
                       }}
-                      className="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white"
+                      className="px-4 py-2 rounded-lg bg-scroll-accent hover:bg-scroll-accent-strong text-white"
                     >
                       Oluştur
                     </button>
@@ -728,7 +862,7 @@ const Dashboard: React.FC = () => {
             )}
             {showCreateChannel && (
               <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50">
-                <div className="w-full max-w-sm bg-gray-800 border border-gray-700 rounded-2xl p-6 shadow-2xl">
+                <div className="w-full max-w-sm bg-[#121212] border border-gray-700 rounded-2xl p-6 shadow-2xl">
                   <h3 className="text-white text-lg font-semibold mb-3">
                     Yeni Kanal
                   </h3>
@@ -736,12 +870,12 @@ const Dashboard: React.FC = () => {
                     value={newChannelName}
                     onChange={(e) => setNewChannelName(e.target.value)}
                     placeholder="Kanal adı"
-                    className="w-full px-4 py-3 rounded-lg bg-gray-900 border border-gray-700 text-white focus:outline-none focus:ring-2 focus:ring-blue-600"
+                    className="w-full px-4 py-3 rounded-lg bg-[#121212] border border-gray-700 text-white focus:outline-none focus:ring-2 focus:ring-blue-600"
                   />
                   <div className="flex justify-end space-x-2 mt-6">
                     <button
                       onClick={() => setShowCreateChannel(false)}
-                      className="px-4 py-2 rounded-lg border border-gray-600 text-gray-300 hover:bg-gray-700"
+                      className="px-4 py-2 rounded-lg border border-gray-600 text-gray-300 hover:bg-[#121212]"
                     >
                       İptal
                     </button>
@@ -783,7 +917,7 @@ const Dashboard: React.FC = () => {
                           showToast("error", "Kanal oluşturulamadı");
                         }
                       }}
-                      className="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white"
+                      className="px-4 py-2 rounded-lg bg-scroll-accent hover:bg-scroll-accent-strong text-white"
                     >
                       Oluştur
                     </button>
@@ -793,7 +927,7 @@ const Dashboard: React.FC = () => {
             )}
             {confirmChannel.open && (
               <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50">
-                <div className="w-full max-w-sm bg-gray-800 border border-gray-700 rounded-2xl p-6 shadow-2xl">
+                <div className="w-full max-w-sm bg-[#121212] border border-gray-700 rounded-2xl p-6 shadow-2xl">
                   <h3 className="text-white text-lg font-semibold mb-3">
                     Kanalı sil?
                   </h3>
@@ -803,7 +937,7 @@ const Dashboard: React.FC = () => {
                   <div className="flex justify-end space-x-2 mt-6">
                     <button
                       onClick={() => setConfirmChannel({ open: false })}
-                      className="px-4 py-2 rounded-lg border border-gray-600 text-gray-300 hover:bg-gray-700"
+                      className="px-4 py-2 rounded-lg border border-gray-600 text-gray-300 hover:bg-[#121212]"
                     >
                       İptal
                     </button>
@@ -853,7 +987,7 @@ const Dashboard: React.FC = () => {
                           );
                         }
                       }}
-                      className="px-4 py-2 rounded-lg bg-red-600 hover:bg-red-700 text-white"
+                      className="px-4 py-2 rounded-lg bg-scroll-accent hover:bg-scroll-accent-strong text-white"
                     >
                       Sil
                     </button>
@@ -917,7 +1051,7 @@ const Dashboard: React.FC = () => {
                   {isStatusOpen && (
                     <div
                       id="status-menu-panel"
-                      className="absolute left-0 bottom-6 bg-gray-800 border border-gray-700 rounded-lg shadow-lg w-44 z-10 py-1"
+                      className="absolute left-0 bottom-6 bg-[#121212] border border-gray-700 rounded-lg shadow-lg w-44 z-10 py-1"
                     >
                       <button
                         onClick={async () => {
@@ -927,7 +1061,7 @@ const Dashboard: React.FC = () => {
                             await updateStatus("online");
                           } catch {}
                         }}
-                        className="w-full text-left px-3 py-2 text-sm hover:bg-gray-700"
+                        className="w-full text-left px-3 py-2 text-sm hover:bg-[#121212]"
                       >
                         Çevrimiçi
                       </button>
@@ -939,7 +1073,7 @@ const Dashboard: React.FC = () => {
                             await updateStatus("away");
                           } catch {}
                         }}
-                        className="w-full text-left px-3 py-2 text-sm hover:bg-gray-700"
+                        className="w-full text-left px-3 py-2 text-sm hover:bg-[#121212]"
                       >
                         Uzakta
                       </button>
@@ -951,7 +1085,7 @@ const Dashboard: React.FC = () => {
                             await updateStatus("dnd");
                           } catch {}
                         }}
-                        className="w-full text-left px-3 py-2 text-sm hover:bg-gray-700"
+                        className="w-full text-left px-3 py-2 text-sm hover:bg-[#121212]"
                       >
                         Rahatsız Etmeyin
                       </button>
@@ -963,7 +1097,7 @@ const Dashboard: React.FC = () => {
                             await updateStatus("offline");
                           } catch {}
                         }}
-                        className="w-full text-left px-3 py-2 text-sm hover:bg-gray-700"
+                        className="w-full text-left px-3 py-2 text-sm hover:bg-[#121212]"
                       >
                         Çevrimdışı
                       </button>
@@ -1029,16 +1163,21 @@ const Dashboard: React.FC = () => {
 
         {/* Ana Chat Alanı */}
         <div className="flex-1 flex flex-col">
-          {/* Chat Header */}
-          <div className="h-12 bg-gray-800 border-b border-gray-700 flex items-center px-4">
-            <div className="flex items-center space-x-2">
-              <span className="text-gray-400">#</span>
-              <span className="text-white font-semibold">
-                {channelsList.length > 0 && activeChannelId
-                  ? channelsList.find((c) => c.id === activeChannelId)?.name ||
-                    "kanal"
-                  : "—"}
-              </span>
+          {/* Modern Chat Header */}
+          <div className="h-16 bg-black border-b border-gray-800 flex items-center px-6">
+            <div className="flex items-center space-x-3">
+              <div className="w-8 h-8 bg-scroll-accent rounded-full flex items-center justify-center">
+                <span className="text-white font-bold text-sm">#</span>
+              </div>
+              <div>
+                <span className="text-white font-bold text-lg">
+                  {channelsList.length > 0 && activeChannelId
+                    ? channelsList.find((c) => c.id === activeChannelId)
+                        ?.name || "kanal"
+                    : "—"}
+                </span>
+                <p className="text-gray-400 text-sm">Metin kanalı</p>
+              </div>
             </div>
             <div className="flex items-center space-x-4 ml-auto">
               <button className="p-1 text-gray-400 hover:text-white">
@@ -1111,7 +1250,9 @@ const Dashboard: React.FC = () => {
                   />
                 </svg>
               </button>
-              <span className="text-gray-400 text-sm">Üyeler - 8</span>
+              <span className="text-gray-400 text-sm">
+                Üyeler - {users.length}
+              </span>
             </div>
           </div>
 
@@ -1120,7 +1261,7 @@ const Dashboard: React.FC = () => {
             {/* Metin kanalı yoksa sohbet alanı gösterme */}
             {channelsList.length === 0 || !activeChannelId ? (
               <div className="text-center py-10 text-gray-400">
-                <div className="w-14 h-14 bg-gray-700 rounded-full flex items-center justify-center mx-auto mb-4">
+                <div className="w-14 h-14 bg-[#121212] rounded-full flex items-center justify-center mx-auto mb-4">
                   <span className="text-2xl">#</span>
                 </div>
                 <p>Önce bir metin kanalı oluşturun.</p>
@@ -1186,13 +1327,16 @@ const Dashboard: React.FC = () => {
                       channelsList.find((c) => c.id === activeChannelId)
                         ?.name || ""
                     } kanalına mesaj gönder`}
-                    className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:border-transparent"
+                    className="w-full px-4 py-3 bg-[#121212] border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:border-transparent"
                   />
                 </div>
-                <button
-                  type="button"
-                  className="p-2 text-gray-400 hover:text-white"
-                >
+                <label className="p-2 text-gray-400 hover:text-white cursor-pointer">
+                  <input
+                    type="file"
+                    onChange={handleFileUpload}
+                    className="hidden"
+                    accept="image/*,.pdf,.doc,.docx,.txt,.xls,.xlsx"
+                  />
                   <svg
                     className="w-5 h-5"
                     fill="none"
@@ -1203,10 +1347,10 @@ const Dashboard: React.FC = () => {
                       strokeLinecap="round"
                       strokeLinejoin="round"
                       strokeWidth={2}
-                      d="M14.828 14.828a4 4 0 01-5.656 0M9 10h1m4 0h1m-6 4h8m-5-8V3a2 2 0 114 0v3M7 7h10a2 2 0 012 2v8a2 2 0 01-2 2H7a2 2 0 01-2-2V9a2 2 0 012-2z"
+                      d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"
                     />
                   </svg>
-                </button>
+                </label>
                 <button
                   type="button"
                   className="p-2 text-gray-400 hover:text-white"
@@ -1250,12 +1394,12 @@ const Dashboard: React.FC = () => {
 
         {/* Sağ Sidebar - Üye Listesi */}
         <div
-          className={`bg-gray-800 border-l border-gray-700 h-full min-h-full flex flex-col overflow-hidden transition-all duration-300 ${
+          className={`bg-black border-l border-gray-800 h-full min-h-full flex flex-col overflow-hidden transition-all duration-300 ${
             isMembersOpen ? "w-60 translate-x-0" : "w-0 translate-x-full"
           }`}
           aria-hidden={!isMembersOpen}
         >
-          <div className="p-4 border-b border-gray-700 flex items-center justify-between">
+          <div className="p-4 border-b border-gray-800 flex items-center justify-between">
             <div className="flex items-center space-x-2">
               <button
                 onClick={() => setIsMembersOpen((v) => !v)}
@@ -1276,7 +1420,9 @@ const Dashboard: React.FC = () => {
                   />
                 </svg>
               </button>
-              <h3 className="text-white font-semibold">Üyeler - 8</h3>
+              <h3 className="text-white font-semibold">
+                Üyeler - {users.length}
+              </h3>
               {/* Sunucu Davet - buradan kaldırıldı, sol üst başlığa taşındı */}
             </div>
           </div>
@@ -1288,7 +1434,7 @@ const Dashboard: React.FC = () => {
             {/* Çevrimiçi */}
             <div>
               <h4 className="text-gray-400 text-xs font-semibold uppercase tracking-wide mb-2">
-                ÇEVRİMİÇİ - 5
+                ÇEVRİMİÇİ - {users.filter((u) => u.status === "online").length}
               </h4>
               <div className="space-y-2">
                 {users
@@ -1296,20 +1442,73 @@ const Dashboard: React.FC = () => {
                   .map((user) => (
                     <div key={user.id} className="flex items-center space-x-3">
                       <div className="relative">
-                        <div className="w-8 h-8 bg-gray-600 rounded-full flex items-center justify-center">
-                          <span className="text-white font-medium text-sm">
-                            {getInitials(user.username)}
-                          </span>
+                        <div className="w-8 h-8 bg-gray-600 rounded-full flex items-center justify-center overflow-hidden">
+                          {user.avatar ? (
+                            <img
+                              src={avatarService.getAvatarUrl(user.avatar)}
+                              alt={user.username}
+                              className="w-full h-full object-cover"
+                            />
+                          ) : (
+                            <span className="text-white font-medium text-sm">
+                              {getInitials(user.username)}
+                            </span>
+                          )}
                         </div>
+                        {user.role === "owner" && (
+                          <div className="absolute -top-1 -right-1 w-4 h-4 bg-yellow-500 rounded-full flex items-center justify-center">
+                            <span className="text-black text-xs font-bold">
+                              👑
+                            </span>
+                          </div>
+                        )}
+                        {user.role === "admin" && (
+                          <div className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 rounded-full flex items-center justify-center">
+                            <span className="text-white text-xs font-bold">
+                              A
+                            </span>
+                          </div>
+                        )}
                         <div
                           className={`absolute -bottom-1 -right-1 w-3 h-3 ${getStatusColor(
                             user.status
                           )} rounded-full border-2 border-gray-800`}
                         ></div>
                       </div>
-                      <span className="text-white text-sm">
-                        {user.username}
-                      </span>
+                      <div className="flex items-center space-x-2">
+                        <span className="text-white text-sm">
+                          {user.username}
+                        </span>
+                        {user.id !== currentUser?.id && (
+                          <button
+                            onClick={async () => {
+                              try {
+                                const response =
+                                  await friendService.sendFriendRequest(
+                                    user.id
+                                  );
+                                if (response.success) {
+                                  showToast(
+                                    "success",
+                                    "Arkadaşlık isteği gönderildi!"
+                                  );
+                                }
+                              } catch (error) {
+                                showToast(
+                                  "error",
+                                  error instanceof Error
+                                    ? error.message
+                                    : "Hata oluştu"
+                                );
+                              }
+                            }}
+                            className="text-xs bg-scroll-accent hover:bg-scroll-accent-strong text-white px-2 py-1 rounded transition-colors"
+                            title="Arkadaş ekle"
+                          >
+                            +
+                          </button>
+                        )}
+                      </div>
                     </div>
                   ))}
               </div>
@@ -1318,7 +1517,7 @@ const Dashboard: React.FC = () => {
             {/* Uzakta */}
             <div>
               <h4 className="text-gray-400 text-xs font-semibold uppercase tracking-wide mb-2">
-                UZAKTA - 2
+                UZAKTA - {users.filter((u) => u.status === "away").length}
               </h4>
               <div className="space-y-2">
                 {users
@@ -1326,20 +1525,73 @@ const Dashboard: React.FC = () => {
                   .map((user) => (
                     <div key={user.id} className="flex items-center space-x-3">
                       <div className="relative">
-                        <div className="w-8 h-8 bg-gray-600 rounded-full flex items-center justify-center">
-                          <span className="text-white font-medium text-sm">
-                            {getInitials(user.username)}
-                          </span>
+                        <div className="w-8 h-8 bg-gray-600 rounded-full flex items-center justify-center overflow-hidden">
+                          {user.avatar ? (
+                            <img
+                              src={avatarService.getAvatarUrl(user.avatar)}
+                              alt={user.username}
+                              className="w-full h-full object-cover"
+                            />
+                          ) : (
+                            <span className="text-white font-medium text-sm">
+                              {getInitials(user.username)}
+                            </span>
+                          )}
                         </div>
+                        {user.role === "owner" && (
+                          <div className="absolute -top-1 -right-1 w-4 h-4 bg-yellow-500 rounded-full flex items-center justify-center">
+                            <span className="text-black text-xs font-bold">
+                              👑
+                            </span>
+                          </div>
+                        )}
+                        {user.role === "admin" && (
+                          <div className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 rounded-full flex items-center justify-center">
+                            <span className="text-white text-xs font-bold">
+                              A
+                            </span>
+                          </div>
+                        )}
                         <div
                           className={`absolute -bottom-1 -right-1 w-3 h-3 ${getStatusColor(
                             user.status
                           )} rounded-full border-2 border-gray-800`}
                         ></div>
                       </div>
-                      <span className="text-white text-sm">
-                        {user.username}
-                      </span>
+                      <div className="flex items-center space-x-2">
+                        <span className="text-white text-sm">
+                          {user.username}
+                        </span>
+                        {user.id !== currentUser?.id && (
+                          <button
+                            onClick={async () => {
+                              try {
+                                const response =
+                                  await friendService.sendFriendRequest(
+                                    user.id
+                                  );
+                                if (response.success) {
+                                  showToast(
+                                    "success",
+                                    "Arkadaşlık isteği gönderildi!"
+                                  );
+                                }
+                              } catch (error) {
+                                showToast(
+                                  "error",
+                                  error instanceof Error
+                                    ? error.message
+                                    : "Hata oluştu"
+                                );
+                              }
+                            }}
+                            className="text-xs bg-scroll-accent hover:bg-scroll-accent-strong text-white px-2 py-1 rounded transition-colors"
+                            title="Arkadaş ekle"
+                          >
+                            +
+                          </button>
+                        )}
+                      </div>
                     </div>
                   ))}
               </div>
@@ -1348,7 +1600,8 @@ const Dashboard: React.FC = () => {
             {/* Rahatsız Etmeyin */}
             <div>
               <h4 className="text-gray-400 text-xs font-semibold uppercase tracking-wide mb-2">
-                RAHATSIZ ETMEYİN - 1
+                RAHATSIZ ETMEYİN -{" "}
+                {users.filter((u) => u.status === "dnd").length}
               </h4>
               <div className="space-y-2">
                 {users
@@ -1356,20 +1609,73 @@ const Dashboard: React.FC = () => {
                   .map((user) => (
                     <div key={user.id} className="flex items-center space-x-3">
                       <div className="relative">
-                        <div className="w-8 h-8 bg-gray-600 rounded-full flex items-center justify-center">
-                          <span className="text-white font-medium text-sm">
-                            {getInitials(user.username)}
-                          </span>
+                        <div className="w-8 h-8 bg-gray-600 rounded-full flex items-center justify-center overflow-hidden">
+                          {user.avatar ? (
+                            <img
+                              src={avatarService.getAvatarUrl(user.avatar)}
+                              alt={user.username}
+                              className="w-full h-full object-cover"
+                            />
+                          ) : (
+                            <span className="text-white font-medium text-sm">
+                              {getInitials(user.username)}
+                            </span>
+                          )}
                         </div>
+                        {user.role === "owner" && (
+                          <div className="absolute -top-1 -right-1 w-4 h-4 bg-yellow-500 rounded-full flex items-center justify-center">
+                            <span className="text-black text-xs font-bold">
+                              👑
+                            </span>
+                          </div>
+                        )}
+                        {user.role === "admin" && (
+                          <div className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 rounded-full flex items-center justify-center">
+                            <span className="text-white text-xs font-bold">
+                              A
+                            </span>
+                          </div>
+                        )}
                         <div
                           className={`absolute -bottom-1 -right-1 w-3 h-3 ${getStatusColor(
                             user.status
                           )} rounded-full border-2 border-gray-800`}
                         ></div>
                       </div>
-                      <span className="text-white text-sm">
-                        {user.username}
-                      </span>
+                      <div className="flex items-center space-x-2">
+                        <span className="text-white text-sm">
+                          {user.username}
+                        </span>
+                        {user.id !== currentUser?.id && (
+                          <button
+                            onClick={async () => {
+                              try {
+                                const response =
+                                  await friendService.sendFriendRequest(
+                                    user.id
+                                  );
+                                if (response.success) {
+                                  showToast(
+                                    "success",
+                                    "Arkadaşlık isteği gönderildi!"
+                                  );
+                                }
+                              } catch (error) {
+                                showToast(
+                                  "error",
+                                  error instanceof Error
+                                    ? error.message
+                                    : "Hata oluştu"
+                                );
+                              }
+                            }}
+                            className="text-xs bg-scroll-accent hover:bg-scroll-accent-strong text-white px-2 py-1 rounded transition-colors"
+                            title="Arkadaş ekle"
+                          >
+                            +
+                          </button>
+                        )}
+                      </div>
                     </div>
                   ))}
               </div>
@@ -1378,7 +1684,8 @@ const Dashboard: React.FC = () => {
             {/* Çevrimdışı */}
             <div>
               <h4 className="text-gray-400 text-xs font-semibold uppercase tracking-wide mb-2">
-                ÇEVRİMDIŞI - 2
+                ÇEVRİMDIŞI -{" "}
+                {users.filter((u) => u.status === "offline").length}
               </h4>
               <div className="space-y-2">
                 {users
@@ -1386,20 +1693,73 @@ const Dashboard: React.FC = () => {
                   .map((user) => (
                     <div key={user.id} className="flex items-center space-x-3">
                       <div className="relative">
-                        <div className="w-8 h-8 bg-gray-600 rounded-full flex items-center justify-center">
-                          <span className="text-white font-medium text-sm">
-                            {getInitials(user.username)}
-                          </span>
+                        <div className="w-8 h-8 bg-gray-600 rounded-full flex items-center justify-center overflow-hidden">
+                          {user.avatar ? (
+                            <img
+                              src={avatarService.getAvatarUrl(user.avatar)}
+                              alt={user.username}
+                              className="w-full h-full object-cover"
+                            />
+                          ) : (
+                            <span className="text-white font-medium text-sm">
+                              {getInitials(user.username)}
+                            </span>
+                          )}
                         </div>
+                        {user.role === "owner" && (
+                          <div className="absolute -top-1 -right-1 w-4 h-4 bg-yellow-500 rounded-full flex items-center justify-center">
+                            <span className="text-black text-xs font-bold">
+                              👑
+                            </span>
+                          </div>
+                        )}
+                        {user.role === "admin" && (
+                          <div className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 rounded-full flex items-center justify-center">
+                            <span className="text-white text-xs font-bold">
+                              A
+                            </span>
+                          </div>
+                        )}
                         <div
                           className={`absolute -bottom-1 -right-1 w-3 h-3 ${getStatusColor(
                             user.status
                           )} rounded-full border-2 border-gray-800`}
                         ></div>
                       </div>
-                      <span className="text-white text-sm">
-                        {user.username}
-                      </span>
+                      <div className="flex items-center space-x-2">
+                        <span className="text-white text-sm">
+                          {user.username}
+                        </span>
+                        {user.id !== currentUser?.id && (
+                          <button
+                            onClick={async () => {
+                              try {
+                                const response =
+                                  await friendService.sendFriendRequest(
+                                    user.id
+                                  );
+                                if (response.success) {
+                                  showToast(
+                                    "success",
+                                    "Arkadaşlık isteği gönderildi!"
+                                  );
+                                }
+                              } catch (error) {
+                                showToast(
+                                  "error",
+                                  error instanceof Error
+                                    ? error.message
+                                    : "Hata oluştu"
+                                );
+                              }
+                            }}
+                            className="text-xs bg-scroll-accent hover:bg-scroll-accent-strong text-white px-2 py-1 rounded transition-colors"
+                            title="Arkadaş ekle"
+                          >
+                            +
+                          </button>
+                        )}
+                      </div>
                     </div>
                   ))}
               </div>
@@ -1410,7 +1770,7 @@ const Dashboard: React.FC = () => {
       {/* Modal */}
       {showCreateServer && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50">
-          <div className="w-full max-w-md bg-gray-800 border border-gray-700 rounded-2xl p-6 shadow-2xl">
+          <div className="w-full max-w-md bg-[#121212] border border-gray-700 rounded-2xl p-6 shadow-2xl">
             <h3 className="text-white text-lg font-semibold mb-4">
               Yeni Sunucu Oluştur
             </h3>
@@ -1419,9 +1779,9 @@ const Dashboard: React.FC = () => {
                 value={newServerName}
                 onChange={(e) => setNewServerName(e.target.value)}
                 placeholder="Sunucu adı"
-                className="w-full px-4 py-3 rounded-lg bg-gray-900 border border-gray-700 text-white focus:outline-none focus:ring-2 focus:ring-blue-600"
+                className="w-full px-4 py-3 rounded-lg bg-[#121212] border border-gray-700 text-white focus:outline-none focus:ring-2 focus:ring-blue-600"
               />
-              <div className="mt-4 p-3 rounded-lg bg-gray-900 border border-gray-700">
+              <div className="mt-4 p-3 rounded-lg bg-[#121212] border border-gray-700">
                 <div className="flex items-center justify-between mb-2">
                   <span className="text-gray-200 text-sm font-semibold">
                     Var olan sunucuya katıl
@@ -1473,7 +1833,7 @@ const Dashboard: React.FC = () => {
                         );
                       }
                     }}
-                    className="px-3 py-1.5 rounded bg-blue-600 hover:bg-blue-700 text-white text-xs"
+                    className="px-3 py-1.5 rounded bg-scroll-accent hover:bg-scroll-accent-strong text-white text-xs"
                   >
                     Katıl
                   </button>
@@ -1483,7 +1843,7 @@ const Dashboard: React.FC = () => {
                     value={joinLink}
                     onChange={(e) => setJoinLink(e.target.value)}
                     placeholder="Davet linkini ya da token'ı yapıştırın"
-                    className="flex-1 px-3 py-2 rounded bg-gray-800 border border-gray-700 text-gray-100"
+                    className="flex-1 px-3 py-2 rounded bg-[#121212] border border-gray-700 text-gray-100"
                   />
                 </div>
                 <p className="text-xs text-gray-500 mt-2">
@@ -1496,7 +1856,7 @@ const Dashboard: React.FC = () => {
                   Sunucu Logosu
                 </label>
                 <div className="flex items-center space-x-4">
-                  <div className="w-16 h-16 rounded-xl overflow-hidden border border-gray-700 bg-gray-900 flex items-center justify-center">
+                  <div className="w-16 h-16 rounded-xl overflow-hidden border border-gray-700 bg-[#121212] flex items-center justify-center">
                     {newServerIcon ? (
                       <img
                         src={newServerIcon}
@@ -1539,7 +1899,7 @@ const Dashboard: React.FC = () => {
                     />
                     <label
                       htmlFor="serverLogo"
-                      className="inline-flex items-center px-4 py-2 rounded-lg bg-gray-700 hover:bg-gray-600 text-gray-100 cursor-pointer"
+                      className="inline-flex items-center px-4 py-2 rounded-lg bg-[#121212] hover:bg-[#1F1B24] text-gray-100 cursor-pointer"
                     >
                       Dosya Seç
                     </label>
@@ -1553,7 +1913,7 @@ const Dashboard: React.FC = () => {
             <div className="flex justify-end space-x-2 mt-6">
               <button
                 onClick={() => setShowCreateServer(false)}
-                className="px-4 py-2 rounded-lg border border-gray-600 text-gray-300 hover:bg-gray-700"
+                className="px-4 py-2 rounded-lg border border-gray-600 text-gray-300 hover:bg-[#121212]"
               >
                 İptal
               </button>
@@ -1591,7 +1951,7 @@ const Dashboard: React.FC = () => {
                     );
                   }
                 }}
-                className="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white"
+                className="px-4 py-2 rounded-lg bg-scroll-accent hover:bg-scroll-accent-strong text-white"
               >
                 Oluştur
               </button>
@@ -1603,14 +1963,14 @@ const Dashboard: React.FC = () => {
       {/* Sunucu Davet Modali */}
       {showServerInvite && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50">
-          <div className="w-full max-w-md bg-gray-800 border border-gray-700 rounded-2xl p-6 shadow-2xl">
+          <div className="w-full max-w-md bg-[#121212] border border-gray-700 rounded-2xl p-6 shadow-2xl">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-white text-lg font-semibold">
                 Sunucu Davet Bağlantısı
               </h3>
               <button
                 onClick={() => setShowServerInvite(false)}
-                className="p-1 rounded bg-gray-700 hover:bg-gray-600 text-gray-100"
+                className="p-1 rounded bg-[#121212] hover:bg-[#1F1B24] text-gray-100"
                 title="Kapat"
               >
                 <svg
@@ -1638,7 +1998,7 @@ const Dashboard: React.FC = () => {
                   value={
                     currentInviteLink || `${window.location.origin}/dashboard`
                   }
-                  className="flex-1 px-3 py-2 rounded-l bg-gray-900 border border-gray-700 text-gray-100"
+                  className="flex-1 px-3 py-2 rounded-l bg-[#121212] border border-gray-700 text-gray-100"
                 />
                 <button
                   onClick={async () => {
@@ -1654,7 +2014,7 @@ const Dashboard: React.FC = () => {
                   className={`px-3 rounded-r border border-l-0 ${
                     serverInviteCopied
                       ? "bg-green-600 text-white border-green-600"
-                      : "bg-gray-700 text-gray-100 hover:bg-gray-600 border-gray-700"
+                      : "bg-[#121212] text-gray-100 hover:bg-[#1F1B24] border-gray-700"
                   }`}
                   title="Kopyala"
                 >
@@ -1700,7 +2060,7 @@ const Dashboard: React.FC = () => {
                   onChange={(e) =>
                     setInviteMaxUses(parseInt(e.target.value, 10))
                   }
-                  className="w-full px-3 py-2 rounded bg-gray-900 border border-gray-700 text-gray-100"
+                  className="w-full px-3 py-2 rounded bg-[#121212] border border-gray-700 text-gray-100"
                 >
                   <option value={1}>1 (tek kullanımlık)</option>
                   <option value={5}>5</option>
@@ -1717,7 +2077,7 @@ const Dashboard: React.FC = () => {
                   onChange={(e) =>
                     setInviteExpiresIn(parseInt(e.target.value, 10))
                   }
-                  className="w-full px-3 py-2 rounded bg-gray-900 border border-gray-700 text-gray-100"
+                  className="w-full px-3 py-2 rounded bg-[#121212] border border-gray-700 text-gray-100"
                 >
                   <option value={24 * 60 * 60 * 1000}>24 saat</option>
                   <option value={3 * 24 * 60 * 60 * 1000}>3 gün</option>
@@ -1753,7 +2113,7 @@ const Dashboard: React.FC = () => {
                     return (
                       <div
                         key={it.id}
-                        className="flex items-center justify-between bg-gray-900 border border-gray-700 rounded px-3 py-2"
+                        className="flex items-center justify-between bg-[#121212] border border-gray-700 rounded px-3 py-2"
                       >
                         <div className="text-sm text-gray-300">
                           <div>
@@ -1799,7 +2159,7 @@ const Dashboard: React.FC = () => {
                                 showToast("error", "Link oluşturulamadı");
                               }
                             }}
-                            className="px-2 py-1 text-xs rounded bg-gray-700 hover:bg-gray-600 text-white"
+                            className="px-2 py-1 text-xs rounded bg-[#121212] hover:bg-[#1F1B24] text-white"
                             title="Yeni link oluştur ve kopyala"
                           >
                             Yeni link
@@ -1823,7 +2183,7 @@ const Dashboard: React.FC = () => {
                                 }
                               } catch {}
                             }}
-                            className="px-2 py-1 text-xs rounded bg-red-600 hover:bg-red-700 text-white"
+                            className="px-2 py-1 text-xs rounded bg-scroll-accent hover:bg-scroll-accent-strong text-white"
                           >
                             İptal Et
                           </button>
@@ -1838,7 +2198,7 @@ const Dashboard: React.FC = () => {
             <div className="flex justify-end mt-6">
               <button
                 onClick={() => setShowServerInvite(false)}
-                className="px-4 py-2 rounded bg-gray-700 hover:bg-gray-600 text-gray-100"
+                className="px-4 py-2 rounded bg-[#121212] hover:bg-[#1F1B24] text-gray-100"
               >
                 Kapat
               </button>
@@ -1849,14 +2209,14 @@ const Dashboard: React.FC = () => {
 
       {renameModal.open && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50">
-          <div className="w-full max-w-sm bg-gray-800 border border-gray-700 rounded-2xl p-6 shadow-2xl">
+          <div className="w-full max-w-sm bg-[#121212] border border-gray-700 rounded-2xl p-6 shadow-2xl">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-white text-lg font-semibold">
                 Kanalı Yeniden Adlandır
               </h3>
               <button
                 onClick={() => setRenameModal({ open: false, name: "" })}
-                className="p-1 rounded bg-gray-700 hover:bg-gray-600 text-gray-100"
+                className="p-1 rounded bg-[#121212] hover:bg-[#1F1B24] text-gray-100"
                 title="Kapat"
               >
                 <svg
@@ -1882,7 +2242,7 @@ const Dashboard: React.FC = () => {
               onChange={(e) =>
                 setRenameModal((m) => ({ ...m, name: e.target.value }))
               }
-              className="w-full px-3 py-2 rounded bg-gray-900 border border-gray-700 text-gray-100"
+              className="w-full px-3 py-2 rounded bg-[#121212] border border-gray-700 text-gray-100"
               autoFocus
             />
             <label className="block text-gray-300 text-sm mt-4 mb-2">
@@ -1893,7 +2253,7 @@ const Dashboard: React.FC = () => {
               onChange={(e) =>
                 setRenameModal((m) => ({ ...m, description: e.target.value }))
               }
-              className="w-full px-3 py-2 rounded bg-gray-900 border border-gray-700 text-gray-100"
+              className="w-full px-3 py-2 rounded bg-[#121212] border border-gray-700 text-gray-100"
               placeholder="Kanal açıklaması"
             />
             {renameModal.error && (
@@ -1904,7 +2264,7 @@ const Dashboard: React.FC = () => {
             <div className="flex justify-end gap-2 mt-6">
               <button
                 onClick={() => setRenameModal({ open: false, name: "" })}
-                className="px-4 py-2 rounded bg-gray-700 hover:bg-gray-600 text-gray-100"
+                className="px-4 py-2 rounded bg-[#121212] hover:bg-[#1F1B24] text-gray-100"
               >
                 İptal
               </button>
@@ -1949,7 +2309,7 @@ const Dashboard: React.FC = () => {
                     setRenameModal({ open: false, name: "", description: "" });
                   }
                 }}
-                className="px-4 py-2 rounded bg-blue-600 hover:bg-blue-700 text-white disabled:opacity-60"
+                className="px-4 py-2 rounded bg-scroll-accent hover:bg-scroll-accent-strong text-white disabled:opacity-60"
                 disabled={renameModal.saving}
               >
                 Kaydet
@@ -1962,7 +2322,7 @@ const Dashboard: React.FC = () => {
       {/* Server Delete Confirmation Modal */}
       {confirmDelete.open && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50">
-          <div className="w-full max-w-sm bg-gray-800 border border-gray-700 rounded-2xl p-6 shadow-2xl">
+          <div className="w-full max-w-sm bg-[#121212] border border-gray-700 rounded-2xl p-6 shadow-2xl">
             <h3 className="text-white text-lg font-semibold mb-3">
               Sunucuyu sil?
             </h3>
@@ -1973,7 +2333,7 @@ const Dashboard: React.FC = () => {
             <div className="flex justify-end space-x-2 mt-6">
               <button
                 onClick={() => setConfirmDelete({ open: false })}
-                className="px-4 py-2 rounded-lg border border-gray-600 text-gray-300 hover:bg-gray-700"
+                className="px-4 py-2 rounded-lg border border-gray-600 text-gray-300 hover:bg-[#121212]"
               >
                 İptal
               </button>
@@ -1983,11 +2343,21 @@ const Dashboard: React.FC = () => {
                   if (!token || !confirmDelete.serverId) return;
                   try {
                     await deleteServer(token, confirmDelete.serverId);
-                    setServers((prev) =>
-                      prev.filter((s) => s.id !== confirmDelete.serverId)
-                    );
-                    if (selectedServerId === confirmDelete.serverId)
+
+                    // localStorage'dan eski sunucu bilgilerini temizle
+                    localStorage.removeItem("clientJoinedServers");
+
+                    // Sunucu listesini yeniden yükle
+                    const updatedServers = await getServers(token);
+                    setServers(updatedServers);
+
+                    if (selectedServerId === confirmDelete.serverId) {
                       setSelectedServerId(null);
+                      setChannelsList([]);
+                      setVoiceChannels([]);
+                      setActiveChannelId(null);
+                      setActiveVoiceId(null);
+                    }
                     setConfirmDelete({ open: false });
                     showToast("success", "Sunucu silindi");
                   } catch (error) {
@@ -1998,7 +2368,7 @@ const Dashboard: React.FC = () => {
                     );
                   }
                 }}
-                className="px-4 py-2 rounded-lg bg-red-600 hover:bg-red-700 text-white"
+                className="px-4 py-2 rounded-lg bg-scroll-accent hover:bg-scroll-accent-strong text-white"
               >
                 Sil
               </button>

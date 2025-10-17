@@ -71,6 +71,10 @@ app.use(compression());
 app.use(express.json({ limit: "25mb" }));
 app.use(express.urlencoded({ extended: true, limit: "25mb" }));
 
+// Static dosya servisi (upload edilen dosyalar için)
+const path = require("path");
+app.use("/uploads", express.static(path.join(__dirname, "uploads")));
+
 /* ---------------- Database ---------------- */
 const MONGO_URI = process.env.MONGODB_URI || "mongodb://localhost:27017/ulgen";
 
@@ -121,6 +125,9 @@ app.use("/api/auth", authLimiter, require("./routes/auth"));
 app.use("/api/channels", require("./routes/channels"));
 app.use("/api/servers", require("./routes/servers"));
 app.use("/api/invites", require("./routes/invites"));
+app.use("/api/avatar", require("./routes/avatar"));
+app.use("/api/messages", require("./routes/messages"));
+app.use("/api/friends", require("./routes/friends"));
 
 // Health check
 app.get("/api/health", (_req, res) => {
@@ -165,6 +172,30 @@ io.on("connection", (socket) => {
     if (map && map.size === 0) roomUsers.delete(channelId);
   });
 
+  // Read-only room state for UI sidebars without joining the voice room
+  // Client calls with an acknowledgement callback: socket.emit('get-room-state', channelId, (state) => { ... })
+  socket.on("get-room-state", (channelId, ack) => {
+    try {
+      if (typeof ack !== "function") return;
+      if (!channelId) return ack({ users: [] });
+      const map = roomUsers.get(channelId);
+      const users = map
+        ? Array.from(map.entries()).map(([sid, data]) => ({
+            userId: sid,
+            username: data?.username,
+            isMuted: !!data?.isMuted,
+            isDeafened: !!data?.isDeafened,
+            isSpeaking: !!data?.isSpeaking,
+          }))
+        : [];
+      ack({ users });
+    } catch (e) {
+      try {
+        if (typeof ack === "function") ack({ users: [] });
+      } catch {}
+    }
+  });
+
   socket.on("presence-update", (payload) => {
     const { channelId, username, isMuted, isDeafened, isSpeaking } =
       payload || {};
@@ -188,6 +219,243 @@ io.on("connection", (socket) => {
       userId: socket.id,
       audioData,
       sampleRate,
+    });
+  });
+
+  // Mesajlaşma sistemi
+  socket.on("send-message", async (data) => {
+    const { channelId, message, username, userId } = data || {};
+    if (!channelId || !message || !username) return;
+
+    try {
+      // Veritabanına mesajı kaydet
+      const Message = require("./models/Message");
+      const Channel = require("./models/Channel");
+
+      // Kanal bilgilerini al
+      const channel = await Channel.findById(channelId).populate("server");
+      if (!channel) return;
+
+      // Mesajı veritabanına kaydet
+      const savedMessage = new Message({
+        channelId,
+        serverId: channel.server._id,
+        userId: userId || socket.id,
+        username,
+        content: message.trim(),
+        messageType: "text",
+      });
+
+      await savedMessage.save();
+
+      // Populate ile tam bilgileri al
+      const populatedMessage = await Message.findById(
+        savedMessage._id
+      ).populate("userId", "username avatar");
+
+      const messageData = {
+        id: populatedMessage._id.toString(),
+        userId: populatedMessage.userId._id.toString(),
+        username: populatedMessage.username,
+        content: populatedMessage.content,
+        timestamp: populatedMessage.formattedTime,
+        avatar: populatedMessage.userId.avatar,
+      };
+
+      // Tüm kanal üyelerine mesajı gönder
+      socket.to(channelId).emit("new-message", messageData);
+      // Gönderen kişiye de mesajı geri gönder (kendi mesajını görmesi için)
+      socket.emit("new-message", messageData);
+    } catch (error) {
+      console.error("Message save error:", error);
+      // Hata durumunda eski yöntemle devam et
+      const messageData = {
+        id: Date.now().toString(),
+        userId: userId || socket.id,
+        username,
+        content: message,
+        timestamp: new Date().toLocaleTimeString("tr-TR", {
+          hour: "2-digit",
+          minute: "2-digit",
+        }),
+      };
+
+      socket.to(channelId).emit("new-message", messageData);
+      socket.emit("new-message", messageData);
+    }
+  });
+
+  // Kanal üyelerini al
+  socket.on("get-channel-members", (channelId, ack) => {
+    try {
+      if (typeof ack !== "function") return;
+      if (!channelId) return ack({ members: [] });
+
+      const map = roomUsers.get(channelId);
+      const members = map
+        ? Array.from(map.entries()).map(([sid, data]) => ({
+            userId: sid,
+            username: data?.username || `Kullanıcı ${sid.slice(0, 4)}`,
+            isOnline: true,
+            lastSeen: new Date().toISOString(),
+          }))
+        : [];
+
+      ack({ members });
+    } catch (e) {
+      try {
+        if (typeof ack === "function") ack({ members: [] });
+      } catch {}
+    }
+  });
+
+  // Sunucu üyelerini al (gerçek kullanıcılar)
+  socket.on("get-server-members", async (serverId, ack) => {
+    try {
+      if (typeof ack !== "function") return;
+      if (!serverId) return ack({ members: [] });
+
+      const Server = require("./models/Server");
+      const server = await Server.findById(serverId).populate(
+        "members.user",
+        "username email avatar isOnline lastSeen"
+      );
+
+      if (!server) return ack({ members: [] });
+
+      const members = server.members
+        .filter((member) => member.user && member.user._id) // null user'ları filtrele
+        .map((member) => ({
+          userId: member.user._id.toString(),
+          username: member.user.username,
+          email: member.user.email,
+          avatar: member.user.avatar,
+          role: member.role,
+          isOnline: member.user.isOnline,
+          lastSeen: member.user.lastSeen,
+          joinedAt: member.joinedAt,
+        }));
+
+      ack({ members });
+    } catch (e) {
+      console.error("Error getting server members:", e);
+      try {
+        if (typeof ack === "function") ack({ members: [] });
+      } catch {}
+    }
+  });
+
+  // Arkadaş ekleme sistemi
+  socket.on("send-friend-request", async (data, ack) => {
+    try {
+      if (typeof ack !== "function") return;
+      const { fromUserId, toUserId, fromUsername } = data || {};
+
+      if (!fromUserId || !toUserId || !fromUsername) {
+        return ack({ success: false, message: "Eksik bilgi" });
+      }
+
+      // Gerçek uygulamada burada veritabanına arkadaşlık isteği kaydedilir
+      // Şimdilik sadece hedef kullanıcıya bildirim gönderelim
+
+      // Hedef kullanıcının socket'ini bul (gerçek uygulamada kullanıcı ID'si ile eşleştirme yapılır)
+      const targetSocket = Array.from(io.sockets.sockets.values()).find(
+        (s) => s.id === toUserId
+      ); // Bu geçici, gerçek uygulamada kullanıcı ID mapping'i olmalı
+
+      if (targetSocket) {
+        targetSocket.emit("friend-request-received", {
+          fromUserId,
+          fromUsername,
+          timestamp: new Date().toISOString(),
+        });
+      }
+
+      ack({ success: true, message: "Arkadaşlık isteği gönderildi" });
+    } catch (e) {
+      console.error("Error sending friend request:", e);
+      try {
+        if (typeof ack === "function")
+          ack({ success: false, message: "Hata oluştu" });
+      } catch {}
+    }
+  });
+
+  // Gerçek zamanlı ayarlar sistemi
+  socket.on("update-user-settings", (data) => {
+    const { userId, username, settings, channelId } = data || {};
+    if (!userId || !username || !settings) return;
+
+    // Aynı kanaldaki tüm kullanıcılara ayar güncellemesini bildir
+    if (channelId) {
+      socket.to(channelId).emit("user-settings-updated", {
+        userId,
+        username,
+        settings,
+        timestamp: new Date().toISOString(),
+      });
+    }
+
+    // Kullanıcının kendi ayarlarını da güncelle
+    socket.emit("user-settings-updated", {
+      userId,
+      username,
+      settings,
+      timestamp: new Date().toISOString(),
+    });
+  });
+
+  // Kullanıcı durumu güncelleme (online/away/dnd/offline)
+  socket.on("update-user-status", (data) => {
+    const { userId, username, status, channelId } = data || {};
+    if (!userId || !username || !status) return;
+
+    // Aynı kanaldaki tüm kullanıcılara durum güncellemesini bildir
+    if (channelId) {
+      socket.to(channelId).emit("user-status-updated", {
+        userId,
+        username,
+        status,
+        timestamp: new Date().toISOString(),
+      });
+    }
+
+    // Kullanıcının kendi durumunu da güncelle
+    socket.emit("user-status-updated", {
+      userId,
+      username,
+      status,
+      timestamp: new Date().toISOString(),
+    });
+  });
+
+  // Ses/video ayarları güncelleme
+  socket.on("update-audio-video-settings", (data) => {
+    const { userId, username, audioSettings, videoSettings, channelId } =
+      data || {};
+    if (!userId || !username) return;
+
+    const settings = {
+      audio: audioSettings || {},
+      video: videoSettings || {},
+    };
+
+    // Aynı kanaldaki tüm kullanıcılara ayar güncellemesini bildir
+    if (channelId) {
+      socket.to(channelId).emit("audio-video-settings-updated", {
+        userId,
+        username,
+        settings,
+        timestamp: new Date().toISOString(),
+      });
+    }
+
+    // Kullanıcının kendi ayarlarını da güncelle
+    socket.emit("audio-video-settings-updated", {
+      userId,
+      username,
+      settings,
+      timestamp: new Date().toISOString(),
     });
   });
 

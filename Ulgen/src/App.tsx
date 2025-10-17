@@ -43,7 +43,7 @@ function App() {
     <AuthProvider>
       <ToastProvider>
         <Router>
-          <div className="min-h-screen bg-gray-900 text-white">
+          <div className="min-h-screen bg-[#121212] text-gray-100">
             <Navbar />
             <Suspense fallback={<Fallback />}>
               <Routes>

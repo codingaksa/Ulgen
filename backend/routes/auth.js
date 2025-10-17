@@ -35,6 +35,9 @@ router.post("/reset-password", resetPassword);
 
 /* ================== Private (Token gerekli) ================== */
 
+// Token doğrulama endpoint'i
+router.get("/verify", authenticateToken, getMe);
+
 router.get("/me", authenticateToken, getMe);
 router.post("/logout", authenticateToken, logout);
 

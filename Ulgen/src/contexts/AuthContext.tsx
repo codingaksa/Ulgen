@@ -6,6 +6,7 @@ interface User {
   username: string;
   email: string;
   isEmailVerified?: boolean;
+  avatar?: string;
 }
 
 interface AuthContextType {
@@ -18,7 +19,11 @@ interface AuthContextType {
     password: string
   ) => Promise<void>;
   logout: () => Promise<void>;
-  updateProfile: (data: { username?: string; email?: string }) => Promise<void>;
+  updateProfile: (data: {
+    username?: string;
+    email?: string;
+    avatar?: string;
+  }) => Promise<void>;
   changePassword: (
     currentPassword: string,
     newPassword: string
@@ -44,34 +49,65 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   // Centralized API base so we can switch between local and hosted easily
   const API_BASE =
-    (import.meta as any).env?.VITE_API_BASE ||
-    "https://ulgen-backend.onrender.com/api";
+    (import.meta as any).env?.VITE_API_BASE || "http://localhost:5000/api";
+
+  // Token doğrulama fonksiyonu
+  const verifyToken = async (token: string): Promise<User | null> => {
+    try {
+      const response = await fetch(`${API_BASE}/auth/verify`, {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        return data.user;
+      }
+      return null;
+    } catch (error) {
+      console.error("Token verification error:", error);
+      return null;
+    }
+  };
 
   // Sayfa yüklendiğinde token kontrolü
   useEffect(() => {
-    const token = localStorage.getItem("token");
-    const userData = localStorage.getItem("user");
+    const initializeAuth = async () => {
+      const token = localStorage.getItem("token");
+      const userData = localStorage.getItem("user");
 
-    if (token && userData) {
-      try {
-        const user = JSON.parse(userData);
-        // E-posta onayı kontrolü
-        if (user.isEmailVerified) {
-          setCurrentUser(user);
-        } else {
-          // E-posta onaylanmamışsa çıkış yap
+      if (token && userData) {
+        try {
+          const user = JSON.parse(userData);
+
+          // Token'ı backend'de doğrula
+          const verifiedUser = await verifyToken(token);
+
+          if (verifiedUser && verifiedUser.isEmailVerified) {
+            // Token geçerli ve email doğrulanmış
+            setCurrentUser(verifiedUser);
+            // localStorage'daki user bilgilerini güncelle
+            localStorage.setItem("user", JSON.stringify(verifiedUser));
+          } else {
+            // Token geçersiz veya email doğrulanmamış
+            localStorage.removeItem("token");
+            localStorage.removeItem("user");
+            setCurrentUser(null);
+          }
+        } catch (error) {
+          console.error("User data parse error:", error);
           localStorage.removeItem("token");
           localStorage.removeItem("user");
           setCurrentUser(null);
         }
-      } catch (error) {
-        console.error("User data parse error:", error);
-        localStorage.removeItem("token");
-        localStorage.removeItem("user");
       }
-    }
 
-    setLoading(false);
+      setLoading(false);
+    };
+
+    initializeAuth();
   }, []);
 
   const login = async (email: string, password: string): Promise<void> => {
@@ -163,6 +199,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const updateProfile = async (data: {
     username?: string;
     email?: string;
+    avatar?: string;
   }): Promise<void> => {
     try {
       const token = localStorage.getItem("token");
