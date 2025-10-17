@@ -10,13 +10,13 @@ import { faTrash } from "@fortawesome/free-solid-svg-icons";
 const Settings: React.FC = () => {
   const { currentUser, logout, updateProfile, changePassword, deleteAccount } =
     useAuth();
-  const { 
-    theme, 
-    customTheme, 
-    availableThemes, 
-    setTheme, 
-    setCustomTheme, 
-    deleteCustomTheme 
+  const {
+    theme,
+    customTheme,
+    availableThemes,
+    setTheme,
+    setCustomTheme,
+    deleteCustomTheme,
   } = useTheme();
   const [activeTab, setActiveTab] = useState("account");
   const [pttConfig, setPttConfig] = useState<{
@@ -69,9 +69,10 @@ const Settings: React.FC = () => {
   } | null>(null);
 
   // Masaüstü bildirim izni durumu
-  const [notificationPermission, setNotificationPermission] = useState<
-    NotificationPermission
-  >(() => (typeof Notification !== "undefined" ? Notification.permission : "default"));
+  const [notificationPermission, setNotificationPermission] =
+    useState<NotificationPermission>(() =>
+      typeof Notification !== "undefined" ? Notification.permission : "default"
+    );
 
   const requestNotificationPermission = async () => {
     try {
@@ -821,7 +822,6 @@ const Settings: React.FC = () => {
           </div>
         )}
 
-
         {activeTab === "audio" && (
           <div>
             <div className="mb-8">
@@ -1280,21 +1280,31 @@ const Settings: React.FC = () => {
         {activeTab === "privacy" && (
           <div>
             <div className="mb-8">
-              <h2 className="text-3xl font-bold text-white mb-2">Gizlilik & Güvenlik</h2>
-              <p className="text-gray-400">Hesap güvenliğinizi ve gizlilik ayarlarınızı yönetin</p>
+              <h2 className="text-3xl font-bold text-white mb-2">
+                Gizlilik & Güvenlik
+              </h2>
+              <p className="text-gray-400">
+                Hesap güvenliğinizi ve gizlilik ayarlarınızı yönetin
+              </p>
               <div className="w-full h-px bg-gray-800 mt-4"></div>
             </div>
 
             <div className="space-y-8">
               {/* Gizlilik Ayarları */}
               <div className="bg-[#121212] rounded-lg p-6">
-                <h3 className="text-xl font-semibold text-white mb-4">Gizlilik Ayarları</h3>
-                
+                <h3 className="text-xl font-semibold text-white mb-4">
+                  Gizlilik Ayarları
+                </h3>
+
                 <div className="space-y-4">
                   <div className="flex items-center justify-between">
                     <div>
-                      <h4 className="text-white font-medium">Çevrimiçi Durumu Gizle</h4>
-                      <p className="text-gray-400 text-sm">Diğer kullanıcılar çevrimiçi durumunuzu göremez</p>
+                      <h4 className="text-white font-medium">
+                        Çevrimiçi Durumu Gizle
+                      </h4>
+                      <p className="text-gray-400 text-sm">
+                        Diğer kullanıcılar çevrimiçi durumunuzu göremez
+                      </p>
                     </div>
                     <label className="relative inline-flex items-center cursor-pointer">
                       <input type="checkbox" className="sr-only peer" />
@@ -1304,8 +1314,12 @@ const Settings: React.FC = () => {
 
                   <div className="flex items-center justify-between">
                     <div>
-                      <h4 className="text-white font-medium">Aktif Oyunu Gizle</h4>
-                      <p className="text-gray-400 text-sm">Hangi oyunu oynadığınızı gizleyin</p>
+                      <h4 className="text-white font-medium">
+                        Aktif Oyunu Gizle
+                      </h4>
+                      <p className="text-gray-400 text-sm">
+                        Hangi oyunu oynadığınızı gizleyin
+                      </p>
                     </div>
                     <label className="relative inline-flex items-center cursor-pointer">
                       <input type="checkbox" className="sr-only peer" />
@@ -1315,8 +1329,12 @@ const Settings: React.FC = () => {
 
                   <div className="flex items-center justify-between">
                     <div>
-                      <h4 className="text-white font-medium">Arkadaş İsteklerini Gizle</h4>
-                      <p className="text-gray-400 text-sm">Yeni arkadaş isteklerini gizleyin</p>
+                      <h4 className="text-white font-medium">
+                        Arkadaş İsteklerini Gizle
+                      </h4>
+                      <p className="text-gray-400 text-sm">
+                        Yeni arkadaş isteklerini gizleyin
+                      </p>
                     </div>
                     <label className="relative inline-flex items-center cursor-pointer">
                       <input type="checkbox" className="sr-only peer" />
@@ -1328,13 +1346,19 @@ const Settings: React.FC = () => {
 
               {/* Güvenlik Ayarları */}
               <div className="bg-[#121212] rounded-lg p-6">
-                <h3 className="text-xl font-semibold text-white mb-4">Güvenlik Ayarları</h3>
-                
+                <h3 className="text-xl font-semibold text-white mb-4">
+                  Güvenlik Ayarları
+                </h3>
+
                 <div className="space-y-4">
                   <div className="flex items-center justify-between">
                     <div>
-                      <h4 className="text-white font-medium">İki Faktörlü Doğrulama</h4>
-                      <p className="text-gray-400 text-sm">Hesabınızı ekstra güvenlik katmanı ile koruyun</p>
+                      <h4 className="text-white font-medium">
+                        İki Faktörlü Doğrulama
+                      </h4>
+                      <p className="text-gray-400 text-sm">
+                        Hesabınızı ekstra güvenlik katmanı ile koruyun
+                      </p>
                     </div>
                     <button className="px-4 py-2 bg-scroll-accent hover:bg-scroll-accent-strong text-white text-sm font-medium rounded-lg transition-colors">
                       Etkinleştir
@@ -1344,7 +1368,9 @@ const Settings: React.FC = () => {
                   <div className="flex items-center justify-between">
                     <div>
                       <h4 className="text-white font-medium">Oturum Geçmişi</h4>
-                      <p className="text-gray-400 text-sm">Aktif oturumlarınızı görüntüleyin ve yönetin</p>
+                      <p className="text-gray-400 text-sm">
+                        Aktif oturumlarınızı görüntüleyin ve yönetin
+                      </p>
                     </div>
                     <button className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white text-sm font-medium rounded-lg transition-colors">
                       Görüntüle
@@ -1353,11 +1379,19 @@ const Settings: React.FC = () => {
 
                   <div className="flex items-center justify-between">
                     <div>
-                      <h4 className="text-white font-medium">Güvenlik Uyarıları</h4>
-                      <p className="text-gray-400 text-sm">Şüpheli aktiviteler için e-posta alın</p>
+                      <h4 className="text-white font-medium">
+                        Güvenlik Uyarıları
+                      </h4>
+                      <p className="text-gray-400 text-sm">
+                        Şüpheli aktiviteler için e-posta alın
+                      </p>
                     </div>
                     <label className="relative inline-flex items-center cursor-pointer">
-                      <input type="checkbox" className="sr-only peer" defaultChecked />
+                      <input
+                        type="checkbox"
+                        className="sr-only peer"
+                        defaultChecked
+                      />
                       <div className="w-11 h-6 bg-gray-600 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-violet-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-violet-600"></div>
                     </label>
                   </div>
@@ -1366,13 +1400,19 @@ const Settings: React.FC = () => {
 
               {/* Veri Yönetimi */}
               <div className="bg-[#121212] rounded-lg p-6">
-                <h3 className="text-xl font-semibold text-white mb-4">Veri Yönetimi</h3>
-                
+                <h3 className="text-xl font-semibold text-white mb-4">
+                  Veri Yönetimi
+                </h3>
+
                 <div className="space-y-4">
                   <div className="flex items-center justify-between">
                     <div>
-                      <h4 className="text-white font-medium">Verilerimi İndir</h4>
-                      <p className="text-gray-400 text-sm">Hesabınızla ilgili tüm verileri indirin</p>
+                      <h4 className="text-white font-medium">
+                        Verilerimi İndir
+                      </h4>
+                      <p className="text-gray-400 text-sm">
+                        Hesabınızla ilgili tüm verileri indirin
+                      </p>
                     </div>
                     <button className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white text-sm font-medium rounded-lg transition-colors">
                       İndir
@@ -1382,7 +1422,9 @@ const Settings: React.FC = () => {
                   <div className="flex items-center justify-between">
                     <div>
                       <h4 className="text-white font-medium">Verilerimi Sil</h4>
-                      <p className="text-gray-400 text-sm">Hesabınızla ilgili tüm verileri kalıcı olarak silin</p>
+                      <p className="text-gray-400 text-sm">
+                        Hesabınızla ilgili tüm verileri kalıcı olarak silin
+                      </p>
                     </div>
                     <button className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-sm font-medium rounded-lg transition-colors">
                       Sil
@@ -1398,7 +1440,9 @@ const Settings: React.FC = () => {
         {activeTab === "notifications" && (
           <div>
             <div className="mb-8">
-              <h2 className="text-3xl font-bold text-white mb-2">Bildirimler</h2>
+              <h2 className="text-3xl font-bold text-white mb-2">
+                Bildirimler
+              </h2>
               <p className="text-gray-400">Bildirim tercihlerinizi yönetin</p>
               <div className="w-full h-px bg-gray-800 mt-4"></div>
             </div>
@@ -1408,9 +1452,12 @@ const Settings: React.FC = () => {
               <div className="bg-[#121212] rounded-lg p-6">
                 <div className="flex items-center justify-between">
                   <div>
-                    <h3 className="text-xl font-semibold text-white mb-1">Masaüstü Bildirim İzni</h3>
+                    <h3 className="text-xl font-semibold text-white mb-1">
+                      Masaüstü Bildirim İzni
+                    </h3>
                     <p className="text-gray-400 text-sm">
-                      İzin durumu: {notificationPermission === "granted"
+                      İzin durumu:{" "}
+                      {notificationPermission === "granted"
                         ? "İzin verildi"
                         : notificationPermission === "denied"
                         ? "Reddedildi"
@@ -1440,38 +1487,64 @@ const Settings: React.FC = () => {
 
               {/* Genel Bildirimler */}
               <div className="bg-[#121212] rounded-lg p-6">
-                <h3 className="text-xl font-semibold text-white mb-4">Genel Bildirimler</h3>
-                
+                <h3 className="text-xl font-semibold text-white mb-4">
+                  Genel Bildirimler
+                </h3>
+
                 <div className="space-y-4">
                   <div className="flex items-center justify-between">
                     <div>
-                      <h4 className="text-white font-medium">Tüm Bildirimler</h4>
-                      <p className="text-gray-400 text-sm">Tüm bildirimleri aç/kapat</p>
+                      <h4 className="text-white font-medium">
+                        Tüm Bildirimler
+                      </h4>
+                      <p className="text-gray-400 text-sm">
+                        Tüm bildirimleri aç/kapat
+                      </p>
                     </div>
                     <label className="relative inline-flex items-center cursor-pointer">
-                      <input type="checkbox" className="sr-only peer" defaultChecked />
+                      <input
+                        type="checkbox"
+                        className="sr-only peer"
+                        defaultChecked
+                      />
                       <div className="w-11 h-6 bg-gray-600 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-violet-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-violet-600"></div>
                     </label>
                   </div>
 
                   <div className="flex items-center justify-between">
                     <div>
-                      <h4 className="text-white font-medium">Ses Bildirimleri</h4>
-                      <p className="text-gray-400 text-sm">Bildirim seslerini aç/kapat</p>
+                      <h4 className="text-white font-medium">
+                        Ses Bildirimleri
+                      </h4>
+                      <p className="text-gray-400 text-sm">
+                        Bildirim seslerini aç/kapat
+                      </p>
                     </div>
                     <label className="relative inline-flex items-center cursor-pointer">
-                      <input type="checkbox" className="sr-only peer" defaultChecked />
+                      <input
+                        type="checkbox"
+                        className="sr-only peer"
+                        defaultChecked
+                      />
                       <div className="w-11 h-6 bg-gray-600 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-violet-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-violet-600"></div>
                     </label>
                   </div>
 
                   <div className="flex items-center justify-between">
                     <div>
-                      <h4 className="text-white font-medium">Masaüstü Bildirimleri</h4>
-                      <p className="text-gray-400 text-sm">Masaüstü bildirimlerini aç/kapat</p>
+                      <h4 className="text-white font-medium">
+                        Masaüstü Bildirimleri
+                      </h4>
+                      <p className="text-gray-400 text-sm">
+                        Masaüstü bildirimlerini aç/kapat
+                      </p>
                     </div>
                     <label className="relative inline-flex items-center cursor-pointer">
-                      <input type="checkbox" className="sr-only peer" defaultChecked />
+                      <input
+                        type="checkbox"
+                        className="sr-only peer"
+                        defaultChecked
+                      />
                       <div className="w-11 h-6 bg-gray-600 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-violet-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-violet-600"></div>
                     </label>
                   </div>
@@ -1480,35 +1553,55 @@ const Settings: React.FC = () => {
 
               {/* Mesaj Bildirimleri */}
               <div className="bg-[#121212] rounded-lg p-6">
-                <h3 className="text-xl font-semibold text-white mb-4">Mesaj Bildirimleri</h3>
-                
+                <h3 className="text-xl font-semibold text-white mb-4">
+                  Mesaj Bildirimleri
+                </h3>
+
                 <div className="space-y-4">
                   <div className="flex items-center justify-between">
                     <div>
                       <h4 className="text-white font-medium">Yeni Mesajlar</h4>
-                      <p className="text-gray-400 text-sm">Yeni mesajlar için bildirim al</p>
+                      <p className="text-gray-400 text-sm">
+                        Yeni mesajlar için bildirim al
+                      </p>
                     </div>
                     <label className="relative inline-flex items-center cursor-pointer">
-                      <input type="checkbox" className="sr-only peer" defaultChecked />
+                      <input
+                        type="checkbox"
+                        className="sr-only peer"
+                        defaultChecked
+                      />
                       <div className="w-11 h-6 bg-gray-600 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-violet-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-violet-600"></div>
                     </label>
                   </div>
 
                   <div className="flex items-center justify-between">
                     <div>
-                      <h4 className="text-white font-medium">Mention Bildirimleri</h4>
-                      <p className="text-gray-400 text-sm">Size mention yapıldığında bildirim al</p>
+                      <h4 className="text-white font-medium">
+                        Mention Bildirimleri
+                      </h4>
+                      <p className="text-gray-400 text-sm">
+                        Size mention yapıldığında bildirim al
+                      </p>
                     </div>
                     <label className="relative inline-flex items-center cursor-pointer">
-                      <input type="checkbox" className="sr-only peer" defaultChecked />
+                      <input
+                        type="checkbox"
+                        className="sr-only peer"
+                        defaultChecked
+                      />
                       <div className="w-11 h-6 bg-gray-600 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-violet-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-violet-600"></div>
                     </label>
                   </div>
 
                   <div className="flex items-center justify-between">
                     <div>
-                      <h4 className="text-white font-medium">Sadece @everyone Bildirimleri</h4>
-                      <p className="text-gray-400 text-sm">Sadece @everyone bildirimlerini al</p>
+                      <h4 className="text-white font-medium">
+                        Sadece @everyone Bildirimleri
+                      </h4>
+                      <p className="text-gray-400 text-sm">
+                        Sadece @everyone bildirimlerini al
+                      </p>
                     </div>
                     <label className="relative inline-flex items-center cursor-pointer">
                       <input type="checkbox" className="sr-only peer" />
@@ -1520,24 +1613,38 @@ const Settings: React.FC = () => {
 
               {/* Ses Kanalı Bildirimleri */}
               <div className="bg-[#121212] rounded-lg p-6">
-                <h3 className="text-xl font-semibold text-white mb-4">Ses Kanalı Bildirimleri</h3>
-                
+                <h3 className="text-xl font-semibold text-white mb-4">
+                  Ses Kanalı Bildirimleri
+                </h3>
+
                 <div className="space-y-4">
                   <div className="flex items-center justify-between">
                     <div>
-                      <h4 className="text-white font-medium">Ses Kanalına Katılma</h4>
-                      <p className="text-gray-400 text-sm">Birisi ses kanalına katıldığında bildirim al</p>
+                      <h4 className="text-white font-medium">
+                        Ses Kanalına Katılma
+                      </h4>
+                      <p className="text-gray-400 text-sm">
+                        Birisi ses kanalına katıldığında bildirim al
+                      </p>
                     </div>
                     <label className="relative inline-flex items-center cursor-pointer">
-                      <input type="checkbox" className="sr-only peer" defaultChecked />
+                      <input
+                        type="checkbox"
+                        className="sr-only peer"
+                        defaultChecked
+                      />
                       <div className="w-11 h-6 bg-gray-600 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-violet-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-violet-600"></div>
                     </label>
                   </div>
 
                   <div className="flex items-center justify-between">
                     <div>
-                      <h4 className="text-white font-medium">Ses Kanalından Ayrılma</h4>
-                      <p className="text-gray-400 text-sm">Birisi ses kanalından ayrıldığında bildirim al</p>
+                      <h4 className="text-white font-medium">
+                        Ses Kanalından Ayrılma
+                      </h4>
+                      <p className="text-gray-400 text-sm">
+                        Birisi ses kanalından ayrıldığında bildirim al
+                      </p>
                     </div>
                     <label className="relative inline-flex items-center cursor-pointer">
                       <input type="checkbox" className="sr-only peer" />
@@ -1554,21 +1661,29 @@ const Settings: React.FC = () => {
         {activeTab === "keybinds" && (
           <div>
             <div className="mb-8">
-              <h2 className="text-3xl font-bold text-white mb-2">Tuş Atamaları</h2>
-              <p className="text-gray-400">Klavye kısayollarınızı özelleştirin</p>
+              <h2 className="text-3xl font-bold text-white mb-2">
+                Tuş Atamaları
+              </h2>
+              <p className="text-gray-400">
+                Klavye kısayollarınızı özelleştirin
+              </p>
               <div className="w-full h-px bg-gray-800 mt-4"></div>
             </div>
 
             <div className="space-y-8">
               {/* Ses Kısayolları */}
               <div className="bg-[#121212] rounded-lg p-6">
-                <h3 className="text-xl font-semibold text-white mb-4">Ses Kısayolları</h3>
-                
+                <h3 className="text-xl font-semibold text-white mb-4">
+                  Ses Kısayolları
+                </h3>
+
                 <div className="space-y-4">
                   <div className="flex items-center justify-between">
                     <div>
                       <h4 className="text-white font-medium">Push-to-Talk</h4>
-                      <p className="text-gray-400 text-sm">Konuşmak için basılı tutun</p>
+                      <p className="text-gray-400 text-sm">
+                        Konuşmak için basılı tutun
+                      </p>
                     </div>
                     <div className="flex items-center space-x-2">
                       <button
@@ -1582,8 +1697,12 @@ const Settings: React.FC = () => {
 
                   <div className="flex items-center justify-between">
                     <div>
-                      <h4 className="text-white font-medium">Mikrofonu Aç/Kapat</h4>
-                      <p className="text-gray-400 text-sm">Mikrofonu hızlıca aç/kapat</p>
+                      <h4 className="text-white font-medium">
+                        Mikrofonu Aç/Kapat
+                      </h4>
+                      <p className="text-gray-400 text-sm">
+                        Mikrofonu hızlıca aç/kapat
+                      </p>
                     </div>
                     <div className="flex items-center space-x-2">
                       <button className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white text-sm font-medium rounded-lg transition-colors">
@@ -1594,8 +1713,12 @@ const Settings: React.FC = () => {
 
                   <div className="flex items-center justify-between">
                     <div>
-                      <h4 className="text-white font-medium">Kulaklığı Aç/Kapat</h4>
-                      <p className="text-gray-400 text-sm">Kulaklığı hızlıca aç/kapat</p>
+                      <h4 className="text-white font-medium">
+                        Kulaklığı Aç/Kapat
+                      </h4>
+                      <p className="text-gray-400 text-sm">
+                        Kulaklığı hızlıca aç/kapat
+                      </p>
                     </div>
                     <div className="flex items-center space-x-2">
                       <button className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white text-sm font-medium rounded-lg transition-colors">
@@ -1608,13 +1731,17 @@ const Settings: React.FC = () => {
 
               {/* Uygulama Kısayolları */}
               <div className="bg-[#121212] rounded-lg p-6">
-                <h3 className="text-xl font-semibold text-white mb-4">Uygulama Kısayolları</h3>
-                
+                <h3 className="text-xl font-semibold text-white mb-4">
+                  Uygulama Kısayolları
+                </h3>
+
                 <div className="space-y-4">
                   <div className="flex items-center justify-between">
                     <div>
                       <h4 className="text-white font-medium">Ayarları Aç</h4>
-                      <p className="text-gray-400 text-sm">Ayarlar sayfasını aç</p>
+                      <p className="text-gray-400 text-sm">
+                        Ayarlar sayfasını aç
+                      </p>
                     </div>
                     <div className="flex items-center space-x-2">
                       <button className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white text-sm font-medium rounded-lg transition-colors">
@@ -1626,7 +1753,9 @@ const Settings: React.FC = () => {
                   <div className="flex items-center justify-between">
                     <div>
                       <h4 className="text-white font-medium">Sunucu Arama</h4>
-                      <p className="text-gray-400 text-sm">Sunucu arama kutusunu aç</p>
+                      <p className="text-gray-400 text-sm">
+                        Sunucu arama kutusunu aç
+                      </p>
                     </div>
                     <div className="flex items-center space-x-2">
                       <button className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white text-sm font-medium rounded-lg transition-colors">
@@ -1638,7 +1767,9 @@ const Settings: React.FC = () => {
                   <div className="flex items-center justify-between">
                     <div>
                       <h4 className="text-white font-medium">Hızlı Mesaj</h4>
-                      <p className="text-gray-400 text-sm">Hızlı mesaj gönderme kutusunu aç</p>
+                      <p className="text-gray-400 text-sm">
+                        Hızlı mesaj gönderme kutusunu aç
+                      </p>
                     </div>
                     <div className="flex items-center space-x-2">
                       <button className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white text-sm font-medium rounded-lg transition-colors">
@@ -1651,13 +1782,19 @@ const Settings: React.FC = () => {
 
               {/* Kısayol Sıfırlama */}
               <div className="bg-[#121212] rounded-lg p-6">
-                <h3 className="text-xl font-semibold text-white mb-4">Kısayol Yönetimi</h3>
-                
+                <h3 className="text-xl font-semibold text-white mb-4">
+                  Kısayol Yönetimi
+                </h3>
+
                 <div className="space-y-4">
                   <div className="flex items-center justify-between">
                     <div>
-                      <h4 className="text-white font-medium">Varsayılan Ayarlara Sıfırla</h4>
-                      <p className="text-gray-400 text-sm">Tüm kısayolları varsayılan değerlere sıfırla</p>
+                      <h4 className="text-white font-medium">
+                        Varsayılan Ayarlara Sıfırla
+                      </h4>
+                      <p className="text-gray-400 text-sm">
+                        Tüm kısayolları varsayılan değerlere sıfırla
+                      </p>
                     </div>
                     <button className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-sm font-medium rounded-lg transition-colors">
                       Sıfırla
@@ -1674,7 +1811,9 @@ const Settings: React.FC = () => {
           <div>
             <div className="mb-8">
               <h2 className="text-3xl font-bold text-white mb-2">Görünüm</h2>
-              <p className="text-gray-400">Tema ve görünüm ayarlarınızı yönetin</p>
+              <p className="text-gray-400">
+                Tema ve görünüm ayarlarınızı yönetin
+              </p>
               <div className="w-full h-px bg-gray-800 mt-4"></div>
             </div>
 
@@ -1682,12 +1821,14 @@ const Settings: React.FC = () => {
               {/* Tema Seçimi */}
               <div className="bg-[#121212] rounded-lg p-6">
                 <h3 className="text-xl font-semibold text-white mb-4">Tema</h3>
-                
+
                 <div className="space-y-4">
                   <div className="flex items-center justify-between">
                     <div>
                       <h4 className="text-white font-medium">Tema Modu</h4>
-                      <p className="text-gray-400 text-sm">Koyu, açık veya otomatik tema seçin</p>
+                      <p className="text-gray-400 text-sm">
+                        Koyu, açık veya otomatik tema seçin
+                      </p>
                     </div>
                     <div className="flex space-x-2">
                       <button
@@ -1727,41 +1868,14 @@ const Settings: React.FC = () => {
 
               {/* Hazır Temalar */}
               <div className="bg-[#121212] rounded-lg p-6">
-                <h3 className="text-xl font-semibold text-white mb-4">Hazır Temalar</h3>
-                
-                <div className="grid grid-cols-2 gap-4">
-                  {availableThemes.filter(t => t.isDefault).map((themeOption) => (
-                    <div
-                      key={themeOption.id}
-                      className={`p-4 rounded-lg border-2 cursor-pointer transition-all ${
-                        customTheme?.id === themeOption.id
-                          ? "border-scroll-accent bg-scroll-accent/10"
-                          : "border-gray-700 hover:border-gray-600"
-                      }`}
-                      onClick={() => setCustomTheme(themeOption)}
-                    >
-                      <div className="flex items-center space-x-3">
-                        <div
-                          className="w-8 h-8 rounded-full"
-                          style={{ backgroundColor: themeOption.colors.primary }}
-                        />
-                        <div>
-                          <h4 className="text-white font-medium">{themeOption.name}</h4>
-                          <p className="text-gray-400 text-sm">Hazır tema</p>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
+                <h3 className="text-xl font-semibold text-white mb-4">
+                  Hazır Temalar
+                </h3>
 
-              {/* Özel Temalar */}
-              {availableThemes.filter(t => !t.isDefault).length > 0 && (
-                <div className="bg-[#121212] rounded-lg p-6">
-                  <h3 className="text-xl font-semibold text-white mb-4">Özel Temalar</h3>
-                  
-                  <div className="grid grid-cols-2 gap-4">
-                    {availableThemes.filter(t => !t.isDefault).map((themeOption) => (
+                <div className="grid grid-cols-2 gap-4">
+                  {availableThemes
+                    .filter((t) => t.isDefault)
+                    .map((themeOption) => (
                       <div
                         key={themeOption.id}
                         className={`p-4 rounded-lg border-2 cursor-pointer transition-all ${
@@ -1771,38 +1885,88 @@ const Settings: React.FC = () => {
                         }`}
                         onClick={() => setCustomTheme(themeOption)}
                       >
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center space-x-3">
-                            <div
-                              className="w-8 h-8 rounded-full"
-                              style={{ backgroundColor: themeOption.colors.primary }}
-                            />
-                            <div>
-                              <h4 className="text-white font-medium">{themeOption.name}</h4>
-                              <p className="text-gray-400 text-sm">Özel tema</p>
-                            </div>
-                          </div>
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              deleteCustomTheme(themeOption.id);
+                        <div className="flex items-center space-x-3">
+                          <div
+                            className="w-8 h-8 rounded-full"
+                            style={{
+                              backgroundColor: themeOption.colors.primary,
                             }}
-                            className="p-1 text-red-400 hover:text-red-300"
-                            title="Temayı sil"
-                          >
-                            <FontAwesomeIcon icon={faTrash} className="w-4 h-4" />
-                          </button>
+                          />
+                          <div>
+                            <h4 className="text-white font-medium">
+                              {themeOption.name}
+                            </h4>
+                            <p className="text-gray-400 text-sm">Hazır tema</p>
+                          </div>
                         </div>
                       </div>
                     ))}
+                </div>
+              </div>
+
+              {/* Özel Temalar */}
+              {availableThemes.filter((t) => !t.isDefault).length > 0 && (
+                <div className="bg-[#121212] rounded-lg p-6">
+                  <h3 className="text-xl font-semibold text-white mb-4">
+                    Özel Temalar
+                  </h3>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    {availableThemes
+                      .filter((t) => !t.isDefault)
+                      .map((themeOption) => (
+                        <div
+                          key={themeOption.id}
+                          className={`p-4 rounded-lg border-2 cursor-pointer transition-all ${
+                            customTheme?.id === themeOption.id
+                              ? "border-scroll-accent bg-scroll-accent/10"
+                              : "border-gray-700 hover:border-gray-600"
+                          }`}
+                          onClick={() => setCustomTheme(themeOption)}
+                        >
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center space-x-3">
+                              <div
+                                className="w-8 h-8 rounded-full"
+                                style={{
+                                  backgroundColor: themeOption.colors.primary,
+                                }}
+                              />
+                              <div>
+                                <h4 className="text-white font-medium">
+                                  {themeOption.name}
+                                </h4>
+                                <p className="text-gray-400 text-sm">
+                                  Özel tema
+                                </p>
+                              </div>
+                            </div>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                deleteCustomTheme(themeOption.id);
+                              }}
+                              className="p-1 text-red-400 hover:text-red-300"
+                              title="Temayı sil"
+                            >
+                              <FontAwesomeIcon
+                                icon={faTrash}
+                                className="w-4 h-4"
+                              />
+                            </button>
+                          </div>
+                        </div>
+                      ))}
                   </div>
                 </div>
               )}
 
               {/* Tema Oluştur */}
               <div className="bg-[#121212] rounded-lg p-6">
-                <h3 className="text-xl font-semibold text-white mb-4">Özel Tema Oluştur</h3>
-                
+                <h3 className="text-xl font-semibold text-white mb-4">
+                  Özel Tema Oluştur
+                </h3>
+
                 <div className="space-y-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-300 mb-2">
@@ -1814,7 +1978,7 @@ const Settings: React.FC = () => {
                       className="w-full px-4 py-3 bg-[#1F1B24] border border-gray-800 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent"
                     />
                   </div>
-                  
+
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <label className="block text-sm font-medium text-gray-300 mb-2">
@@ -1837,7 +2001,7 @@ const Settings: React.FC = () => {
                       />
                     </div>
                   </div>
-                  
+
                   <button className="w-full px-4 py-3 bg-scroll-accent hover:bg-scroll-accent-strong text-white font-medium rounded-lg transition-colors">
                     Tema Oluştur
                   </button>

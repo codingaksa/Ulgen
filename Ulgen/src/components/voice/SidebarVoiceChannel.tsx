@@ -5,6 +5,7 @@ import {
   faVolumeHigh,
   faChevronDown,
   faChevronUp,
+  faTrash,
 } from "@fortawesome/free-solid-svg-icons";
 import SidebarVoiceUser from "./SidebarVoiceUser";
 import { useAuth } from "../../contexts/AuthContext.tsx";
@@ -13,12 +14,14 @@ type SidebarVoiceChannelProps = {
   channelId: string;
   name: string;
   isActive?: boolean;
+  onDelete?: (channelId: string, name: string) => void;
 };
 
 const SidebarVoiceChannel: React.FC<SidebarVoiceChannelProps> = ({
   channelId,
   name,
   isActive,
+  onDelete,
 }) => {
   const [isExpanded, setIsExpanded] = useState(true);
   const [members, setMembers] = useState<
@@ -200,18 +203,32 @@ const SidebarVoiceChannel: React.FC<SidebarVoiceChannelProps> = ({
           {name}
         </span>
         <span className="text-xs opacity-60">{members.length}</span>
-        <div
-          onClick={(e) => {
-            e.stopPropagation();
-            setIsExpanded((v) => !v);
-          }}
-          className="ml-auto px-1 text-gray-400 hover:text-gray-100 cursor-pointer"
-          title={isExpanded ? "Daralt" : "Genişlet"}
-        >
-          {isExpanded ? (
-            <FontAwesomeIcon icon={faChevronUp} className="w-3.5 h-3.5" />
-          ) : (
-            <FontAwesomeIcon icon={faChevronDown} className="w-3.5 h-3.5" />
+        <div className="ml-auto flex items-center gap-1">
+          <div
+            onClick={(e) => {
+              e.stopPropagation();
+              setIsExpanded((v) => !v);
+            }}
+            className="px-1 text-gray-400 hover:text-gray-100 cursor-pointer"
+            title={isExpanded ? "Daralt" : "Genişlet"}
+          >
+            {isExpanded ? (
+              <FontAwesomeIcon icon={faChevronUp} className="w-3.5 h-3.5" />
+            ) : (
+              <FontAwesomeIcon icon={faChevronDown} className="w-3.5 h-3.5" />
+            )}
+          </div>
+          {onDelete && (
+            <div
+              onClick={(e) => {
+                e.stopPropagation();
+                onDelete(channelId, name);
+              }}
+              className="px-1 text-gray-400 hover:text-red-400 cursor-pointer opacity-0 group-hover:opacity-100 transition-opacity"
+              title="Kanalı sil"
+            >
+              <FontAwesomeIcon icon={faTrash} className="w-3.5 h-3.5" />
+            </div>
           )}
         </div>
       </div>
@@ -221,10 +238,7 @@ const SidebarVoiceChannel: React.FC<SidebarVoiceChannelProps> = ({
           {members.map((u) => (
             <SidebarVoiceUser
               key={u.id}
-              channelId={channelId}
-              id={u.id}
               name={u.username}
-              isMuted={u.isMuted}
               isDeafened={u.isDeafened}
               isSelf={u.username === (currentUser?.username || "")}
               speaking={!!u.isSpeaking}

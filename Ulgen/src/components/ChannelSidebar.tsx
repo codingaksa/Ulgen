@@ -319,21 +319,9 @@ const ChannelSidebar: React.FC<ChannelSidebarProps> = React.memo(
                       channelId={vc.id}
                       name={vc.name}
                       isActive={vc.id === activeVoiceId}
+                      onDelete={onDeleteVoice}
                     />
                   </button>
-                  {onDeleteVoice && (
-                    <button
-                      title="Sil"
-                      aria-label="Ses kanalını sil"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onDeleteVoice(vc.id, vc.name);
-                      }}
-                      className="flex items-center justify-center absolute top-1 right-1 w-6 h-6 rounded bg-red-600/80 hover:bg-red-600 text-white opacity-0 group-hover:opacity-100 transition-opacity"
-                    >
-                      <FontAwesomeIcon icon={faTrash} className="w-3.5 h-3.5" />
-                    </button>
-                  )}
                 </div>
               ))
             )}
