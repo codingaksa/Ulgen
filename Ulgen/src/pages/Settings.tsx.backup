@@ -1392,7 +1392,7 @@ const Settings: React.FC = () => {
           </div>
         )}
 
-        {/* Notifications Settings */}
+        {/* Notifications Settings */
         {activeTab === "notifications" && (
           <div>
             <div className="mb-8">
