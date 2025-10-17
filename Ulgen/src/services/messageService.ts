@@ -184,4 +184,154 @@ export const messageService = {
       throw error;
     }
   },
+
+  // Mesaj arama
+  async searchMessages(
+    query: string,
+    channelId?: string,
+    serverId?: string,
+    userId?: string,
+    limit: number = 20
+  ): Promise<{ success: boolean; messages: Message[]; query: string }> {
+    const token = localStorage.getItem("token");
+    if (!token) {
+      throw new Error("Giriş yapmanız gerekiyor");
+    }
+
+    try {
+      const params = new URLSearchParams({
+        q: query,
+        limit: limit.toString(),
+      });
+
+      if (channelId) params.append("channelId", channelId);
+      if (serverId) params.append("serverId", serverId);
+      if (userId) params.append("userId", userId);
+
+      const response = await fetch(
+        `${API_BASE}/api/messages/search?${params}`,
+        {
+          method: "GET",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+        }
+      );
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || "Mesaj arama sırasında hata oluştu");
+      }
+
+      return data;
+    } catch (error) {
+      console.error("Search messages error:", error);
+      throw error;
+    }
+  },
+
+  // Mesaj tepkisi ekle
+  async addReaction(
+    messageId: string,
+    emoji: string
+  ): Promise<{ success: boolean; message: string; reactions: any[] }> {
+    const token = localStorage.getItem("token");
+    if (!token) {
+      throw new Error("Giriş yapmanız gerekiyor");
+    }
+
+    try {
+      const response = await fetch(
+        `${API_BASE}/api/messages/${messageId}/reactions`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ emoji }),
+        }
+      );
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || "Reaction eklenirken hata oluştu");
+      }
+
+      return data;
+    } catch (error) {
+      console.error("Add reaction error:", error);
+      throw error;
+    }
+  },
+
+  // Mesaj tepkisini kaldır
+  async removeReaction(
+    messageId: string,
+    reactionId: string
+  ): Promise<{ success: boolean; message: string; reactions: any[] }> {
+    const token = localStorage.getItem("token");
+    if (!token) {
+      throw new Error("Giriş yapmanız gerekiyor");
+    }
+
+    try {
+      const response = await fetch(
+        `${API_BASE}/api/messages/${messageId}/reactions/${reactionId}`,
+        {
+          method: "DELETE",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+        }
+      );
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || "Reaction silinirken hata oluştu");
+      }
+
+      return data;
+    } catch (error) {
+      console.error("Remove reaction error:", error);
+      throw error;
+    }
+  },
+
+  // Mesaj detayını getir
+  async getMessageById(messageId: string): Promise<CreateMessageResponse> {
+    const token = localStorage.getItem("token");
+    if (!token) {
+      throw new Error("Giriş yapmanız gerekiyor");
+    }
+
+    try {
+      const response = await fetch(
+        `${API_BASE}/api/messages/message/${messageId}`,
+        {
+          method: "GET",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+        }
+      );
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || "Mesaj yüklenirken hata oluştu");
+      }
+
+      return data;
+    } catch (error) {
+      console.error("Get message by ID error:", error);
+      throw error;
+    }
+  },
 };

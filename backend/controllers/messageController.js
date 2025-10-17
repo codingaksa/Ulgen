@@ -248,9 +248,263 @@ const deleteMessage = async (req, res) => {
   }
 };
 
+// @desc Add reaction to a message
+// @route POST /api/messages/:messageId/reactions
+// @access Private
+const addReaction = async (req, res) => {
+  try {
+    const { messageId } = req.params;
+    const { emoji } = req.body;
+
+    if (!emoji) {
+      return res.status(400).json({
+        success: false,
+        message: "Emoji gerekli",
+      });
+    }
+
+    const message = await Message.findById(messageId);
+    if (!message) {
+      return res.status(404).json({
+        success: false,
+        message: "Mesaj bulunamadı",
+      });
+    }
+
+    // Kullanıcının bu kanala erişimi var mı kontrol et
+    const channel = await Channel.findById(message.channelId).populate(
+      "server"
+    );
+    const server = await Server.findById(channel.server._id);
+    const isMember = server.members.some(
+      (member) => member.user.toString() === req.user._id.toString()
+    );
+
+    if (!isMember) {
+      return res.status(403).json({
+        success: false,
+        message: "Bu kanala erişim yetkiniz yok",
+      });
+    }
+
+    // Aynı emoji'yi daha önce eklemiş mi kontrol et
+    const existingReaction = message.reactions.find(
+      (reaction) =>
+        reaction.emoji === emoji &&
+        reaction.userId.toString() === req.user._id.toString()
+    );
+
+    if (existingReaction) {
+      return res.status(400).json({
+        success: false,
+        message: "Bu emoji'yi zaten eklemişsiniz",
+      });
+    }
+
+    // Reaction ekle
+    message.reactions.push({
+      emoji,
+      userId: req.user._id,
+      username: req.user.username,
+    });
+
+    await message.save();
+
+    res.json({
+      success: true,
+      message: "Reaction eklendi",
+      reactions: message.reactions,
+    });
+  } catch (error) {
+    console.error("Add reaction error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Reaction eklenirken hata oluştu",
+    });
+  }
+};
+
+// @desc Remove reaction from a message
+// @route DELETE /api/messages/:messageId/reactions/:reactionId
+// @access Private
+const removeReaction = async (req, res) => {
+  try {
+    const { messageId, reactionId } = req.params;
+
+    const message = await Message.findById(messageId);
+    if (!message) {
+      return res.status(404).json({
+        success: false,
+        message: "Mesaj bulunamadı",
+      });
+    }
+
+    // Reaction'ı bul
+    const reactionIndex = message.reactions.findIndex(
+      (reaction) =>
+        reaction._id.toString() === reactionId &&
+        reaction.userId.toString() === req.user._id.toString()
+    );
+
+    if (reactionIndex === -1) {
+      return res.status(404).json({
+        success: false,
+        message: "Reaction bulunamadı",
+      });
+    }
+
+    // Reaction'ı sil
+    message.reactions.splice(reactionIndex, 1);
+    await message.save();
+
+    res.json({
+      success: true,
+      message: "Reaction silindi",
+      reactions: message.reactions,
+    });
+  } catch (error) {
+    console.error("Remove reaction error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Reaction silinirken hata oluştu",
+    });
+  }
+};
+
+// @desc Search messages
+// @route GET /api/messages/search
+// @access Private
+const searchMessages = async (req, res) => {
+  try {
+    const { q, channelId, serverId, userId, limit = 20 } = req.query;
+
+    if (!q) {
+      return res.status(400).json({
+        success: false,
+        message: "Arama terimi gerekli",
+      });
+    }
+
+    // Arama kriterleri
+    const searchCriteria = {
+      content: { $regex: q, $options: "i" },
+      deleted: false,
+    };
+
+    // Kanal ID varsa ekle
+    if (channelId) {
+      searchCriteria.channelId = channelId;
+    }
+
+    // Sunucu ID varsa ekle
+    if (serverId) {
+      searchCriteria.serverId = serverId;
+    }
+
+    // Kullanıcı ID varsa ekle
+    if (userId) {
+      searchCriteria.userId = userId;
+    }
+
+    // Kullanıcının erişebileceği kanalları kontrol et
+    if (channelId) {
+      const channel = await Channel.findById(channelId).populate("server");
+      if (channel) {
+        const server = await Server.findById(channel.server._id);
+        const isMember = server.members.some(
+          (member) => member.user.toString() === req.user._id.toString()
+        );
+
+        if (!isMember) {
+          return res.status(403).json({
+            success: false,
+            message: "Bu kanala erişim yetkiniz yok",
+          });
+        }
+      }
+    }
+
+    // Mesajları ara
+    const messages = await Message.find(searchCriteria)
+      .populate("userId", "username avatar")
+      .populate("mentions", "username")
+      .populate("replyTo", "content username")
+      .populate("channelId", "name")
+      .populate("serverId", "name")
+      .sort({ createdAt: -1 })
+      .limit(parseInt(limit));
+
+    res.json({
+      success: true,
+      messages,
+      query: q,
+    });
+  } catch (error) {
+    console.error("Search messages error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Mesaj arama sırasında hata oluştu",
+    });
+  }
+};
+
+// @desc Get message by ID
+// @route GET /api/messages/:messageId
+// @access Private
+const getMessageById = async (req, res) => {
+  try {
+    const { messageId } = req.params;
+
+    const message = await Message.findById(messageId)
+      .populate("userId", "username avatar")
+      .populate("mentions", "username")
+      .populate("replyTo", "content username")
+      .populate("channelId", "name")
+      .populate("serverId", "name");
+
+    if (!message) {
+      return res.status(404).json({
+        success: false,
+        message: "Mesaj bulunamadı",
+      });
+    }
+
+    // Kullanıcının bu kanala erişimi var mı kontrol et
+    const channel = await Channel.findById(message.channelId).populate(
+      "server"
+    );
+    const server = await Server.findById(channel.server._id);
+    const isMember = server.members.some(
+      (member) => member.user.toString() === req.user._id.toString()
+    );
+
+    if (!isMember) {
+      return res.status(403).json({
+        success: false,
+        message: "Bu kanala erişim yetkiniz yok",
+      });
+    }
+
+    res.json({
+      success: true,
+      message,
+    });
+  } catch (error) {
+    console.error("Get message by ID error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Mesaj yüklenirken hata oluştu",
+    });
+  }
+};
+
 module.exports = {
   getMessages,
   createMessage,
   editMessage,
   deleteMessage,
+  addReaction,
+  removeReaction,
+  searchMessages,
+  getMessageById,
 };

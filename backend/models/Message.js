@@ -56,6 +56,27 @@ const messageSchema = new Schema(
       ref: "Message",
       default: null,
     },
+    reactions: [
+      {
+        emoji: {
+          type: String,
+          required: true,
+        },
+        userId: {
+          type: Schema.Types.ObjectId,
+          ref: "User",
+          required: true,
+        },
+        username: {
+          type: String,
+          required: true,
+        },
+        createdAt: {
+          type: Date,
+          default: Date.now,
+        },
+      },
+    ],
     edited: {
       type: Boolean,
       default: false,
