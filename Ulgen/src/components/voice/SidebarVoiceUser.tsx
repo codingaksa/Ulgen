@@ -16,7 +16,7 @@ const SidebarVoiceUser: React.FC<SidebarVoiceUserProps> = ({
   const initial = name?.charAt(0)?.toUpperCase() || "?";
 
   return (
-    <div className="flex items-center gap-2 px-2 py-2 rounded hover:bg-gray-700/40 transition-colors group">
+    <div className="flex items-center gap-2 px-2 py-2 rounded group">
       <div className="relative">
         <div
           className={`w-8 h-8 rounded-full flex items-center justify-center text-white font-semibold text-sm ${

@@ -177,8 +177,8 @@ const ChannelSidebar: React.FC<ChannelSidebarProps> = React.memo(
                     className={[
                       "relative group flex items-center justify-between p-2 rounded-lg cursor-pointer outline-none transition",
                       isActive
-                        ? "bg-blue-900/30 text-white border border-blue-700 border-l-4 border-l-blue-500"
-                        : "text-gray-300 bg-black/40 hover:text-white hover:bg-black/70 focus:ring-2 focus:ring-blue-600/50",
+                        ? "text-white"
+                        : "text-gray-300 hover:text-white",
                     ].join(" ")}
                   >
                     <div className="flex items-center space-x-2 min-w-0">
@@ -312,7 +312,7 @@ const ChannelSidebar: React.FC<ChannelSidebarProps> = React.memo(
                   <button
                     type="button"
                     onClick={() => onToggleActiveVoice(vc.id)}
-                    className="w-full text-left outline-none focus:ring-2 focus:ring-blue-600/40 rounded-lg"
+                    className="w-full text-left outline-none rounded-lg"
                     aria-pressed={vc.id === activeVoiceId}
                   >
                     <SidebarVoiceChannel

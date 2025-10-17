@@ -197,7 +197,7 @@ const SidebarVoiceChannel: React.FC<SidebarVoiceChannelProps> = ({
 
   return (
     <div className="space-y-1">
-      <div className="flex items-center gap-2 w-full px-2 py-1.5 rounded hover:bg-[#1F1B24]/60 transition-colors text-gray-100 hover:text-gray-100 group relative">
+      <div className="flex items-center gap-2 w-full px-2 py-1.5 rounded text-gray-100 group relative">
         <FontAwesomeIcon icon={faVolumeHigh} className="w-4 h-4" />
         <span className="text-sm font-medium select-none cursor-default">
           {name}
@@ -209,7 +209,7 @@ const SidebarVoiceChannel: React.FC<SidebarVoiceChannelProps> = ({
               e.stopPropagation();
               setIsExpanded((v) => !v);
             }}
-            className="px-1 text-gray-400 hover:text-gray-100 cursor-pointer"
+            className="px-1 text-gray-400 cursor-pointer"
             title={isExpanded ? "Daralt" : "Genişlet"}
           >
             {isExpanded ? (
@@ -224,7 +224,7 @@ const SidebarVoiceChannel: React.FC<SidebarVoiceChannelProps> = ({
                 e.stopPropagation();
                 onDelete(channelId, name);
               }}
-              className="px-1 text-gray-400 hover:text-red-400 cursor-pointer opacity-0 group-hover:opacity-100 transition-opacity"
+              className="px-1 text-gray-400 cursor-pointer"
               title="Kanalı sil"
             >
               <FontAwesomeIcon icon={faTrash} className="w-3.5 h-3.5" />

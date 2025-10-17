@@ -1401,10 +1401,7 @@ const Dashboard: React.FC = () => {
                     type="text"
                     value={newMessage}
                     onChange={(e) => setNewMessage(e.target.value)}
-                    placeholder={`+ #${
-                      channelsList.find((c) => c.id === activeChannelId)
-                        ?.name || ""
-                    } kanalına mesaj gönder`}
+                    placeholder="Lütfen mesajınızı yazınız"
                     className="w-full px-4 py-3 bg-[#121212] border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:border-transparent"
                   />
                 </div>
@@ -1429,24 +1426,6 @@ const Dashboard: React.FC = () => {
                     />
                   </svg>
                 </label>
-                <button
-                  type="button"
-                  className="p-2 text-gray-400 hover:text-white"
-                >
-                  <svg
-                    className="w-5 h-5"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"
-                    />
-                  </svg>
-                </button>
                 <button
                   type="submit"
                   className="p-2 text-gray-400 hover:text-white"
