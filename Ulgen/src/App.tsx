@@ -6,7 +6,7 @@ import { ThemeProvider } from "./contexts/ThemeContext.tsx";
 import { UserStatusProvider } from "./contexts/UserStatusContext.tsx";
 import { ToastProvider } from "./components/Toast.tsx";
 import ProtectedRoute from "./components/ProtectedRoute.tsx";
-import Navbar from "./components/Navbar.tsx";
+// Navbar kaldırıldı
 
 // Code-splitting (daha hızlı ilk yükleme)
 const Home = lazy(() => import("./pages/Home.tsx"));
@@ -48,7 +48,6 @@ function App() {
           <ToastProvider>
             <Router>
               <div className="min-h-screen bg-[var(--color-background)] text-[var(--color-text)]">
-                <Navbar />
                 <Suspense fallback={<Fallback />}>
                   <Routes>
                     {/* Public */}
