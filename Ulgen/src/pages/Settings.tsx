@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useAuth } from "../contexts/AuthContext.tsx";
+import { useTheme, type Theme, type CustomTheme } from "../contexts/ThemeContext.tsx";
 import { io, Socket } from "socket.io-client";
 import { avatarService } from "../services/avatarService";
 import { emailService } from "../services/emailService";
@@ -7,6 +8,15 @@ import { emailService } from "../services/emailService";
 const Settings: React.FC = () => {
   const { currentUser, logout, updateProfile, changePassword, deleteAccount } =
     useAuth();
+  const { 
+    theme, 
+    customTheme, 
+    availableThemes, 
+    setTheme, 
+    setCustomTheme, 
+    createCustomTheme, 
+    deleteCustomTheme 
+  } = useTheme();
   const [activeTab, setActiveTab] = useState("account");
   const [pttConfig, setPttConfig] = useState<{
     code: string;
@@ -1713,6 +1723,186 @@ const Settings: React.FC = () => {
           </div>
         )}
 
+        {/* Appearance Settings */}
+        {activeTab === "appearance" && (
+          <div>
+            <div className="mb-8">
+              <h2 className="text-3xl font-bold text-white mb-2">Görünüm</h2>
+              <p className="text-gray-400">Tema ve görünüm ayarlarınızı yönetin</p>
+              <div className="w-full h-px bg-gray-800 mt-4"></div>
+            </div>
+
+            <div className="space-y-8">
+              {/* Tema Seçimi */}
+              <div className="bg-[#121212] rounded-lg p-6">
+                <h3 className="text-xl font-semibold text-white mb-4">Tema</h3>
+                
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h4 className="text-white font-medium">Tema Modu</h4>
+                      <p className="text-gray-400 text-sm">Koyu, açık veya otomatik tema seçin</p>
+                    </div>
+                    <div className="flex space-x-2">
+                      <button
+                        onClick={() => setTheme("dark")}
+                        className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                          theme === "dark" && !customTheme
+                            ? "bg-scroll-accent text-white"
+                            : "bg-gray-700 hover:bg-gray-600 text-gray-300"
+                        }`}
+                      >
+                        Koyu
+                      </button>
+                      <button
+                        onClick={() => setTheme("light")}
+                        className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                          theme === "light" && !customTheme
+                            ? "bg-scroll-accent text-white"
+                            : "bg-gray-700 hover:bg-gray-600 text-gray-300"
+                        }`}
+                      >
+                        Açık
+                      </button>
+                      <button
+                        onClick={() => setTheme("auto")}
+                        className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                          theme === "auto" && !customTheme
+                            ? "bg-scroll-accent text-white"
+                            : "bg-gray-700 hover:bg-gray-600 text-gray-300"
+                        }`}
+                      >
+                        Otomatik
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Hazır Temalar */}
+              <div className="bg-[#121212] rounded-lg p-6">
+                <h3 className="text-xl font-semibold text-white mb-4">Hazır Temalar</h3>
+                
+                <div className="grid grid-cols-2 gap-4">
+                  {availableThemes.filter(t => t.isDefault).map((themeOption) => (
+                    <div
+                      key={themeOption.id}
+                      className={`p-4 rounded-lg border-2 cursor-pointer transition-all ${
+                        customTheme?.id === themeOption.id
+                          ? "border-scroll-accent bg-scroll-accent/10"
+                          : "border-gray-700 hover:border-gray-600"
+                      }`}
+                      onClick={() => setCustomTheme(themeOption)}
+                    >
+                      <div className="flex items-center space-x-3">
+                        <div
+                          className="w-8 h-8 rounded-full"
+                          style={{ backgroundColor: themeOption.colors.primary }}
+                        />
+                        <div>
+                          <h4 className="text-white font-medium">{themeOption.name}</h4>
+                          <p className="text-gray-400 text-sm">Hazır tema</p>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Özel Temalar */}
+              {availableThemes.filter(t => !t.isDefault).length > 0 && (
+                <div className="bg-[#121212] rounded-lg p-6">
+                  <h3 className="text-xl font-semibold text-white mb-4">Özel Temalar</h3>
+                  
+                  <div className="grid grid-cols-2 gap-4">
+                    {availableThemes.filter(t => !t.isDefault).map((themeOption) => (
+                      <div
+                        key={themeOption.id}
+                        className={`p-4 rounded-lg border-2 cursor-pointer transition-all ${
+                          customTheme?.id === themeOption.id
+                            ? "border-scroll-accent bg-scroll-accent/10"
+                            : "border-gray-700 hover:border-gray-600"
+                        }`}
+                        onClick={() => setCustomTheme(themeOption)}
+                      >
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center space-x-3">
+                            <div
+                              className="w-8 h-8 rounded-full"
+                              style={{ backgroundColor: themeOption.colors.primary }}
+                            />
+                            <div>
+                              <h4 className="text-white font-medium">{themeOption.name}</h4>
+                              <p className="text-gray-400 text-sm">Özel tema</p>
+                            </div>
+                          </div>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              deleteCustomTheme(themeOption.id);
+                            }}
+                            className="p-1 text-red-400 hover:text-red-300"
+                            title="Temayı sil"
+                          >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                            </svg>
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Tema Oluştur */}
+              <div className="bg-[#121212] rounded-lg p-6">
+                <h3 className="text-xl font-semibold text-white mb-4">Özel Tema Oluştur</h3>
+                
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-2">
+                      Tema Adı
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="Özel tema adı"
+                      className="w-full px-4 py-3 bg-[#1F1B24] border border-gray-800 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent"
+                    />
+                  </div>
+                  
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-300 mb-2">
+                        Ana Renk
+                      </label>
+                      <input
+                        type="color"
+                        defaultValue="#8B5CF6"
+                        className="w-full h-12 rounded-lg border border-gray-800"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-300 mb-2">
+                        Arka Plan
+                      </label>
+                      <input
+                        type="color"
+                        defaultValue="#121212"
+                        className="w-full h-12 rounded-lg border border-gray-800"
+                      />
+                    </div>
+                  </div>
+                  
+                  <button className="w-full px-4 py-3 bg-scroll-accent hover:bg-scroll-accent-strong text-white font-medium rounded-lg transition-colors">
+                    Tema Oluştur
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Diğer sekmeler için placeholder */}
         {![
           "account",
@@ -1720,6 +1910,7 @@ const Settings: React.FC = () => {
           "privacy",
           "notifications",
           "keybinds",
+          "appearance",
         ].includes(activeTab) && (
           <div>
             <div className="mb-8">
