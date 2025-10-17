@@ -128,6 +128,7 @@ app.use("/api/invites", require("./routes/invites"));
 app.use("/api/avatar", require("./routes/avatar"));
 app.use("/api/messages", require("./routes/messages"));
 app.use("/api/friends", require("./routes/friends"));
+app.use("/api/user-status", require("./routes/userStatus"));
 
 // Health check
 app.get("/api/health", (_req, res) => {
@@ -150,11 +151,28 @@ const io = new Server(httpServer, {
   },
 });
 
+// Socket.IO Authentication Middleware
+io.use((socket, next) => {
+  const token = socket.handshake.auth.token;
+  if (!token) {
+    return next(new Error("Authentication error"));
+  }
+
+  try {
+    const jwt = require("jsonwebtoken");
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    socket.userId = decoded.userId;
+    next();
+  } catch (err) {
+    next(new Error("Authentication error"));
+  }
+});
+
 // Basit (dev-only) presence
 const roomUsers = new Map();
 
 io.on("connection", (socket) => {
-  console.log("🔌 connected:", socket.id);
+  console.log("🔌 connected:", socket.id, "user:", socket.userId);
 
   socket.on("join-channel", (channelId) => {
     if (!channelId) return;
@@ -459,7 +477,82 @@ io.on("connection", (socket) => {
     });
   });
 
-  socket.on("disconnect", () => {
+  // User Status Events
+  socket.on("set-status", async (data) => {
+    try {
+      const { status, customStatus } = data || {};
+      const userId = socket.userId; // JWT'den gelen user ID
+      
+      if (!userId) return;
+
+      const User = require("./models/User");
+      const user = await User.findByIdAndUpdate(
+        userId,
+        {
+          status,
+          customStatus: customStatus || null,
+          isOnline: status !== "offline",
+          lastSeen: new Date(),
+        },
+        { new: true, select: "username status customStatus isOnline lastSeen" }
+      );
+
+      if (user) {
+        // Tüm kullanıcılara durum güncellemesini bildir
+        socket.broadcast.emit("user-status-updated", {
+          userId: user._id,
+          username: user.username,
+          status: user.status,
+          customStatus: user.customStatus,
+          lastSeen: user.lastSeen,
+        });
+      }
+    } catch (error) {
+      console.error("Set status error:", error);
+    }
+  });
+
+  socket.on("get-online-users", async () => {
+    try {
+      const User = require("./models/User");
+      const onlineUsers = await User.find(
+        { isOnline: true },
+        "username status customStatus lastSeen"
+      ).sort({ lastSeen: -1 });
+
+      const formattedUsers = onlineUsers.map(user => ({
+        userId: user._id,
+        username: user.username,
+        status: user.status,
+        customStatus: user.customStatus,
+        lastSeen: user.lastSeen,
+      }));
+
+      socket.emit("online-users", formattedUsers);
+    } catch (error) {
+      console.error("Get online users error:", error);
+    }
+  });
+
+  socket.on("disconnect", async () => {
+    try {
+      // Kullanıcıyı offline yap
+      const userId = socket.userId;
+      if (userId) {
+        const User = require("./models/User");
+        await User.findByIdAndUpdate(userId, {
+          isOnline: false,
+          status: "offline",
+          lastSeen: new Date(),
+        });
+
+        // Diğer kullanıcılara bildir
+        socket.broadcast.emit("user-offline", userId);
+      }
+    } catch (error) {
+      console.error("Disconnect status update error:", error);
+    }
+
     for (const [roomId, map] of roomUsers.entries()) {
       if (map.has(socket.id)) {
         map.delete(socket.id);

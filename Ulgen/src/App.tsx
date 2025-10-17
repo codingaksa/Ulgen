@@ -3,6 +3,7 @@ import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import { Suspense, lazy } from "react";
 import { AuthProvider } from "./contexts/AuthContext.tsx";
 import { ThemeProvider } from "./contexts/ThemeContext.tsx";
+import { UserStatusProvider } from "./contexts/UserStatusContext.tsx";
 import { ToastProvider } from "./components/Toast.tsx";
 import ProtectedRoute from "./components/ProtectedRoute.tsx";
 import Navbar from "./components/Navbar.tsx";
@@ -43,53 +44,58 @@ function App() {
   return (
     <ThemeProvider>
       <AuthProvider>
-        <ToastProvider>
-          <Router>
-            <div className="min-h-screen bg-[var(--color-background)] text-[var(--color-text)]">
-              <Navbar />
-              <Suspense fallback={<Fallback />}>
-                <Routes>
-                  {/* Public */}
-                  <Route path="/" element={<Home />} />
-                  <Route path="/login" element={<Login />} />
-                  <Route path="/register" element={<Register />} />
-                  <Route path="/verify-email" element={<VerifyEmail />} />
-                  <Route path="/forgot-password" element={<ForgotPassword />} />
-                  <Route path="/reset-password" element={<ResetPassword />} />
+        <UserStatusProvider>
+          <ToastProvider>
+            <Router>
+              <div className="min-h-screen bg-[var(--color-background)] text-[var(--color-text)]">
+                <Navbar />
+                <Suspense fallback={<Fallback />}>
+                  <Routes>
+                    {/* Public */}
+                    <Route path="/" element={<Home />} />
+                    <Route path="/login" element={<Login />} />
+                    <Route path="/register" element={<Register />} />
+                    <Route path="/verify-email" element={<VerifyEmail />} />
+                    <Route
+                      path="/forgot-password"
+                      element={<ForgotPassword />}
+                    />
+                    <Route path="/reset-password" element={<ResetPassword />} />
 
-                  {/* Protected */}
-                  <Route
-                    path="/dashboard"
-                    element={
-                      <ProtectedRoute>
-                        <Dashboard />
-                      </ProtectedRoute>
-                    }
-                  />
-                  <Route
-                    path="/settings"
-                    element={
-                      <ProtectedRoute>
-                        <Settings />
-                      </ProtectedRoute>
-                    }
-                  />
-                  <Route
-                    path="/channel/:id"
-                    element={
-                      <ProtectedRoute>
-                        <VoiceChannel />
-                      </ProtectedRoute>
-                    }
-                  />
+                    {/* Protected */}
+                    <Route
+                      path="/dashboard"
+                      element={
+                        <ProtectedRoute>
+                          <Dashboard />
+                        </ProtectedRoute>
+                      }
+                    />
+                    <Route
+                      path="/settings"
+                      element={
+                        <ProtectedRoute>
+                          <Settings />
+                        </ProtectedRoute>
+                      }
+                    />
+                    <Route
+                      path="/channel/:id"
+                      element={
+                        <ProtectedRoute>
+                          <VoiceChannel />
+                        </ProtectedRoute>
+                      }
+                    />
 
-                  {/* 404 */}
-                  <Route path="*" element={<NotFound />} />
-                </Routes>
-              </Suspense>
-            </div>
-          </Router>
-        </ToastProvider>
+                    {/* 404 */}
+                    <Route path="*" element={<NotFound />} />
+                  </Routes>
+                </Suspense>
+              </div>
+            </Router>
+          </ToastProvider>
+        </UserStatusProvider>
       </AuthProvider>
     </ThemeProvider>
   );

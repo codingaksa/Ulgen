@@ -2,6 +2,7 @@
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 import { useTheme } from "../contexts/ThemeContext";
+import UserStatusSelector from "./UserStatusSelector";
 
 const Navbar: React.FC = () => {
   const { currentUser, logout } = useAuth();
@@ -49,6 +50,9 @@ const Navbar: React.FC = () => {
                 </Link>
 
                 <div className="flex items-center space-x-3">
+                  {/* User Status Selector */}
+                  <UserStatusSelector />
+
                   {/* Tema değiştirme butonu */}
                   <button
                     onClick={() =>
