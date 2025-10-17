@@ -1,4 +1,10 @@
 import React, { useState, useEffect } from "react";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import {
+  faChevronDown,
+  faPen,
+  faTrash,
+} from "@fortawesome/free-solid-svg-icons";
 import { useUserStatus } from "../contexts/UserStatusContext";
 
 interface Role {
@@ -19,9 +25,9 @@ interface RoleManagementProps {
   className?: string;
 }
 
-const RoleManagement: React.FC<RoleManagementProps> = ({ 
-  serverId, 
-  className = "" 
+const RoleManagement: React.FC<RoleManagementProps> = ({
+  serverId,
+  className = "",
 }) => {
   const [roles, setRoles] = useState<Role[]>([]);
   const [isOpen, setIsOpen] = useState(false);
@@ -72,11 +78,14 @@ const RoleManagement: React.FC<RoleManagementProps> = ({
     try {
       setLoading(true);
       const token = localStorage.getItem("token");
-      const response = await fetch(`http://localhost:5000/api/roles/server/${serverId}`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
+      const response = await fetch(
+        `http://localhost:5000/api/roles/server/${serverId}`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
 
       if (response.ok) {
         const data = await response.json();
@@ -100,14 +109,17 @@ const RoleManagement: React.FC<RoleManagementProps> = ({
     try {
       setLoading(true);
       const token = localStorage.getItem("token");
-      const response = await fetch(`http://localhost:5000/api/roles/server/${serverId}`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify(formData),
-      });
+      const response = await fetch(
+        `http://localhost:5000/api/roles/server/${serverId}`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify(formData),
+        }
+      );
 
       if (response.ok) {
         await loadRoles();
@@ -128,14 +140,17 @@ const RoleManagement: React.FC<RoleManagementProps> = ({
     try {
       setLoading(true);
       const token = localStorage.getItem("token");
-      const response = await fetch(`http://localhost:5000/api/roles/${editingRole._id}`, {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify(formData),
-      });
+      const response = await fetch(
+        `http://localhost:5000/api/roles/${editingRole._id}`,
+        {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify(formData),
+        }
+      );
 
       if (response.ok) {
         await loadRoles();
@@ -156,12 +171,15 @@ const RoleManagement: React.FC<RoleManagementProps> = ({
     try {
       setLoading(true);
       const token = localStorage.getItem("token");
-      const response = await fetch(`http://localhost:5000/api/roles/${roleId}`, {
-        method: "DELETE",
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
+      const response = await fetch(
+        `http://localhost:5000/api/roles/${roleId}`,
+        {
+          method: "DELETE",
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
 
       if (response.ok) {
         await loadRoles();
@@ -290,14 +308,12 @@ const RoleManagement: React.FC<RoleManagementProps> = ({
         className="flex items-center space-x-2 px-3 py-2 bg-[#1F1B24] hover:bg-[#2A2530] rounded-lg transition-colors"
       >
         <span className="text-white text-sm">Roller</span>
-        <svg 
-          className={`w-4 h-4 text-gray-400 transition-transform ${isOpen ? 'rotate-180' : ''}`} 
-          fill="none" 
-          stroke="currentColor" 
-          viewBox="0 0 24 24"
-        >
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-        </svg>
+        <FontAwesomeIcon
+          icon={faChevronDown}
+          className={`w-4 h-4 text-gray-400 transition-transform ${
+            isOpen ? "rotate-180" : ""
+          }`}
+        />
       </button>
 
       {isOpen && (
@@ -322,25 +338,33 @@ const RoleManagement: React.FC<RoleManagementProps> = ({
                 <h4 className="text-white font-medium mb-3">
                   {editingRole ? "Role Düzenle" : "Yeni Role Oluştur"}
                 </h4>
-                
+
                 <div className="space-y-3">
                   <div>
-                    <label className="block text-sm text-gray-300 mb-1">Role Adı</label>
+                    <label className="block text-sm text-gray-300 mb-1">
+                      Role Adı
+                    </label>
                     <input
                       type="text"
                       value={formData.name}
-                      onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                      onChange={(e) =>
+                        setFormData({ ...formData, name: e.target.value })
+                      }
                       className="w-full px-3 py-2 bg-[#1F1B24] border border-gray-600 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-violet-500"
                       placeholder="Role adı..."
                     />
                   </div>
 
                   <div>
-                    <label className="block text-sm text-gray-300 mb-1">Renk</label>
+                    <label className="block text-sm text-gray-300 mb-1">
+                      Renk
+                    </label>
                     <input
                       type="color"
                       value={formData.color}
-                      onChange={(e) => setFormData({ ...formData, color: e.target.value })}
+                      onChange={(e) =>
+                        setFormData({ ...formData, color: e.target.value })
+                      }
                       className="w-full h-10 rounded-lg border border-gray-600"
                     />
                   </div>
@@ -348,23 +372,36 @@ const RoleManagement: React.FC<RoleManagementProps> = ({
                   <div className="space-y-2">
                     {permissionGroups.map((group) => (
                       <div key={group.title}>
-                        <h5 className="text-sm font-medium text-gray-300 mb-2">{group.title}</h5>
+                        <h5 className="text-sm font-medium text-gray-300 mb-2">
+                          {group.title}
+                        </h5>
                         <div className="space-y-1">
                           {group.permissions.map((permission) => (
-                            <label key={permission.key} className="flex items-center space-x-2">
+                            <label
+                              key={permission.key}
+                              className="flex items-center space-x-2"
+                            >
                               <input
                                 type="checkbox"
-                                checked={formData.permissions[permission.key as keyof typeof formData.permissions]}
-                                onChange={(e) => setFormData({
-                                  ...formData,
-                                  permissions: {
-                                    ...formData.permissions,
-                                    [permission.key]: e.target.checked,
-                                  },
-                                })}
+                                checked={
+                                  formData.permissions[
+                                    permission.key as keyof typeof formData.permissions
+                                  ]
+                                }
+                                onChange={(e) =>
+                                  setFormData({
+                                    ...formData,
+                                    permissions: {
+                                      ...formData.permissions,
+                                      [permission.key]: e.target.checked,
+                                    },
+                                  })
+                                }
                                 className="w-4 h-4 text-violet-600 bg-[#1F1B24] border-gray-600 rounded focus:ring-violet-500"
                               />
-                              <span className="text-sm text-gray-300">{permission.label}</span>
+                              <span className="text-sm text-gray-300">
+                                {permission.label}
+                              </span>
                             </label>
                           ))}
                         </div>
@@ -378,7 +415,11 @@ const RoleManagement: React.FC<RoleManagementProps> = ({
                       disabled={loading}
                       className="flex-1 px-3 py-2 bg-violet-600 hover:bg-violet-700 disabled:opacity-50 text-white text-sm rounded-lg transition-colors"
                     >
-                      {loading ? "Kaydediliyor..." : editingRole ? "Güncelle" : "Oluştur"}
+                      {loading
+                        ? "Kaydediliyor..."
+                        : editingRole
+                        ? "Güncelle"
+                        : "Oluştur"}
                     </button>
                     <button
                       onClick={() => {
@@ -409,11 +450,12 @@ const RoleManagement: React.FC<RoleManagementProps> = ({
                     <div>
                       <h4 className="text-white font-medium">{role.name}</h4>
                       <p className="text-xs text-gray-400">
-                        {Object.values(role.permissions).filter(Boolean).length} izin
+                        {Object.values(role.permissions).filter(Boolean).length}{" "}
+                        izin
                       </p>
                     </div>
                   </div>
-                  
+
                   {!role.isDefault && (
                     <div className="flex space-x-1">
                       <button
@@ -421,18 +463,14 @@ const RoleManagement: React.FC<RoleManagementProps> = ({
                         className="p-1 text-gray-400 hover:text-white transition-colors"
                         title="Düzenle"
                       >
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                        </svg>
+                        <FontAwesomeIcon icon={faPen} className="w-4 h-4" />
                       </button>
                       <button
                         onClick={() => deleteRole(role._id)}
                         className="p-1 text-gray-400 hover:text-red-400 transition-colors"
                         title="Sil"
                       >
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                        </svg>
+                        <FontAwesomeIcon icon={faTrash} className="w-4 h-4" />
                       </button>
                     </div>
                   )}

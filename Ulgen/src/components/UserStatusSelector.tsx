@@ -1,5 +1,7 @@
 import React, { useState } from "react";
 import { useUserStatus, type UserStatus } from "../contexts/UserStatusContext";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faChevronDown } from "@fortawesome/free-solid-svg-icons";
 
 interface UserStatusSelectorProps {
   className?: string;
@@ -62,21 +64,12 @@ const UserStatusSelector: React.FC<UserStatusSelectorProps> = ({
       >
         <span className="text-lg">{currentStatusOption?.icon}</span>
         <span className="text-white text-sm">{currentStatusOption?.label}</span>
-        <svg
+        <FontAwesomeIcon
+          icon={faChevronDown}
           className={`w-4 h-4 text-gray-400 transition-transform ${
             isOpen ? "rotate-180" : ""
           }`}
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
-        >
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth={2}
-            d="M19 9l-7 7-7-7"
-          />
-        </svg>
+        />
       </button>
 
       {isOpen && (

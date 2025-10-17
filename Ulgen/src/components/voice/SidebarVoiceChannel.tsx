@@ -1,7 +1,11 @@
 import React, { useEffect, useRef, useState } from "react";
 import { io, Socket } from "socket.io-client";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faVolumeHigh } from "@fortawesome/free-solid-svg-icons";
+import {
+  faVolumeHigh,
+  faChevronDown,
+  faChevronUp,
+} from "@fortawesome/free-solid-svg-icons";
 import SidebarVoiceUser from "./SidebarVoiceUser";
 import { useAuth } from "../../contexts/AuthContext.tsx";
 
@@ -205,31 +209,9 @@ const SidebarVoiceChannel: React.FC<SidebarVoiceChannelProps> = ({
           title={isExpanded ? "Daralt" : "Genişlet"}
         >
           {isExpanded ? (
-            <svg
-              className="w-3.5 h-3.5"
-              viewBox="0 0 20 20"
-              fill="currentColor"
-              aria-hidden
-            >
-              <path
-                fillRule="evenodd"
-                d="M5.23 7.21a.75.75 0 011.06.02L10 10.94l3.71-3.71a.75.75 0 111.06 1.06l-4.24 4.24a.75.75 0 01-1.06 0L5.21 8.29a.75.75 0 01.02-1.08z"
-                clipRule="evenodd"
-              />
-            </svg>
+            <FontAwesomeIcon icon={faChevronUp} className="w-3.5 h-3.5" />
           ) : (
-            <svg
-              className="w-3.5 h-3.5"
-              viewBox="0 0 20 20"
-              fill="currentColor"
-              aria-hidden
-            >
-              <path
-                fillRule="evenodd"
-                d="M7.21 14.77a.75.75 0 01-.02-1.06L10.94 10 7.19 6.29a.75.75 0 111.06-1.06l4.24 4.24a.75.75 0 010 1.06l-4.24 4.24a.75.75 0 01-1.06 0z"
-                clipRule="evenodd"
-              />
-            </svg>
+            <FontAwesomeIcon icon={faChevronDown} className="w-3.5 h-3.5" />
           )}
         </div>
       </div>

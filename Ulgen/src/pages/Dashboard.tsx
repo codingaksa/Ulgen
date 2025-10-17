@@ -15,6 +15,12 @@ import {
 } from "../services/serverService.ts";
 import { useToast } from "../components/Toast.tsx";
 import { avatarService } from "../services/avatarService";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import {
+  faMicrophone,
+  faHeadphones,
+  faDisplay,
+} from "@fortawesome/free-solid-svg-icons";
 import {
   messageService,
   type Message as MessageType,
@@ -1041,37 +1047,30 @@ const Dashboard: React.FC = () => {
           </div>
 
           {/* Ses/Video Kontrol Şeridi */}
-          <div className="p-3 border-t border-gray-700 bg-gray-800/50">
+          <div className="p-3 border-t border-gray-800">
             <div className="flex items-center justify-center space-x-4">
               {/* Mikrofon */}
               <button
-                className="p-2 rounded-lg bg-gray-700 hover:bg-gray-600 text-gray-300 hover:text-white transition-colors"
+                className="p-2 rounded-md text-gray-300 hover:bg-white/5 transition-colors"
                 title="Mikrofonu aç/kapat"
               >
-                <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
-                  <path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z"/>
-                  <path d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"/>
-                </svg>
+                <FontAwesomeIcon icon={faMicrophone} className="w-5 h-5" />
               </button>
-              
+
               {/* Kulaklık */}
               <button
-                className="p-2 rounded-lg bg-gray-700 hover:bg-gray-600 text-gray-300 hover:text-white transition-colors"
+                className="p-2 rounded-md text-gray-300 hover:bg-white/5 transition-colors"
                 title="Kulaklığı aç/kapat"
               >
-                <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
-                  <path d="M12 1c-4.97 0-9 4.03-9 9v7c0 1.66 1.34 3 3 3h3v-8H5v-2c0-3.87 3.13-7 7-7s7 3.13 7 7v2h-4v8h3c1.66 0 3-1.34 3-3v-7c0-4.97-4.03-9-9-9z"/>
-                </svg>
+                <FontAwesomeIcon icon={faHeadphones} className="w-5 h-5" />
               </button>
-              
+
               {/* Ekran Paylaşımı */}
               <button
-                className="p-2 rounded-lg bg-gray-700 hover:bg-gray-600 text-gray-300 hover:text-white transition-colors"
+                className="p-2 rounded-md text-gray-300 hover:bg:white/5 transition-colors"
                 title="Ekran paylaşımı"
               >
-                <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
-                  <path d="M20 18c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2H4c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2H0v2h24v-2h-4zM4 6h16v10H4V6z"/>
-                </svg>
+                <FontAwesomeIcon icon={faDisplay} className="w-5 h-5" />
               </button>
             </div>
           </div>
